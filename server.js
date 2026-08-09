@@ -5,6 +5,15 @@ const { Server } = require('socket.io');
 
 const app = express();
 app.use(express.static(path.join(__dirname)));
+app.get('/debug', (req, res) => {
+  const fs = require('fs');
+  try {
+    const files = fs.readdirSync(__dirname);
+    res.type('text/plain').send('Dossier __dirname : ' + __dirname + '\n\nFichiers trouvés :\n' + files.join('\n'));
+  } catch (e) {
+    res.type('text/plain').send('Erreur : ' + e.message);
+  }
+});
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -19,47 +28,47 @@ const SEGS = [
   { v: 150, c: '#1D9E75' }, { v: 500, c: '#D4537E' }, { v: 200, c: '#BA7517' }, { v: 350, c: '#7F77DD' }
 ];
 const PHRASES = [
-  { p: "LUNE DE MIEL", h: "Le premier chapitre commence loin de chez soi", lvl: 1 },
-  { p: "SAPIN DE NOEL", h: "Il perd ses épines bien après la fête", lvl: 1 },
-  { p: "NUIT ETOILEE", h: "Des milliers de points qu'on ne compte jamais", lvl: 1 },
-  { p: "CREPES AU SUCRE", h: "On en rate toujours une avant la bonne", lvl: 1 },
-  { p: "PARTIE DE CARTES", h: "Un bon bluff vaut plus qu'une bonne main", lvl: 1 },
-  { p: "PHOTO DE CLASSE", h: "Quelqu'un cligne des yeux à chaque fois", lvl: 1 },
-  { p: "COURSE DE VELO", h: "La ligne d'arrivée ne ment jamais", lvl: 1 },
-  { p: "CADEAU DE NOEL", h: "Le papier ne survit jamais longtemps", lvl: 1 },
-  { p: "BALADE A VELO", h: "Les mollets s'en souviennent le lendemain", lvl: 1 },
-  { p: "TOUR DE MANEGE", h: "La tête tourne encore une fois les pieds au sol", lvl: 1 },
-  { p: "COUCHER DE SOLEIL", h: "Un dernier adieu qui dure quelques minutes", lvl: 1 },
-  { p: "REPAS DE FAMILLE", h: "Chaque dimanche, la même table se remplit", lvl: 2 },
-  { p: "SOIREE EN FAMILLE", h: "Le canapé est plein, la télé attendra", lvl: 2 },
-  { p: "VACANCES A LA MER", h: "Le sel colle encore sur la peau le soir", lvl: 2 },
-  { p: "GATEAU AU CHOCOLAT", h: "Personne ne dit non à une deuxième part", lvl: 2 },
-  { p: "PROMENADE EN FORET", h: "Le silence n'est jamais vraiment total", lvl: 2 },
-  { p: "MATCH DE FOOTBALL", h: "Un seul ballon fait crier tout un stade", lvl: 2 },
-  { p: "FEU DE CHEMINEE", h: "Il craque doucement toute la soirée", lvl: 2 },
-  { p: "JEUX DE SOCIETE", h: "Quelqu'un triche toujours un peu", lvl: 2 },
-  { p: "BARBECUE ENTRE AMIS", h: "La fumée trahit toujours la maison", lvl: 2 },
-  { p: "RENTREE DES CLASSES", h: "L'odeur du neuf ne dure jamais longtemps", lvl: 2 },
-  { p: "FETE DES VOISINS", h: "La rue devient une salle à manger", lvl: 2 },
-  { p: "CHASSE AUX OEUFS", h: "Le jardin cache plus qu'il ne montre", lvl: 2 },
-  { p: "MARCHE DE NOEL", h: "Le froid se supporte mieux avec une boisson chaude", lvl: 2 },
-  { p: "CONCERT DE MUSIQUE", h: "Les oreilles sifflent encore le lendemain", lvl: 2 },
-  { p: "ANNIVERSAIRE SURPRISE", h: "Le secret est le plus dur à garder", lvl: 2 },
-  { p: "BALLADE EN MONTAGNE", h: "Chaque pas rapproche un peu du ciel", lvl: 2 },
-  { p: "RANDONNEE EN FAMILLE", h: "Le plus jeune demande toujours si c'est encore loin", lvl: 2 },
-  { p: "GALETTE DES ROIS", h: "Le plus jeune se cache toujours sous la table", lvl: 2 },
-  { p: "COURS DE CUISINE", h: "La farine finit partout sauf dans le plat", lvl: 2 },
-  { p: "SORTIE AU CINEMA", h: "Le noir tombe juste après les publicités", lvl: 2 },
-  { p: "WEEK END A LA CAMPAGNE", h: "Le coq ne demande jamais la permission", lvl: 3 },
-  { p: "PIQUE NIQUE AU PARC", h: "Une fourmi finit toujours par s'inviter", lvl: 3 },
-  { p: "CABANE DANS LES ARBRES", h: "Monter y est toujours plus facile que redescendre", lvl: 3 },
-  { p: "NUIT SOUS LA TENTE", h: "Chaque bruit dehors devient une aventure", lvl: 3 },
-  { p: "BATAILLE DE BOULES DE NEIGE", h: "Personne ne reste au sec bien longtemps", lvl: 3 },
-  { p: "THRILLER MICHAEL JACKSON", h: "Chanson de 1982, un clip devenu culte avec des zombies", lvl: 3 },
-  { p: "IMAGINE JOHN LENNON", h: "Chanson de 1971, un piano et un monde rêvé sans frontières", lvl: 3 },
-  { p: "LA VIE EN ROSE EDITH PIAF", h: "Un classique français chanté depuis 1946", lvl: 3 },
-  { p: "BILLIE JEAN MICHAEL JACKSON", h: "Sortie en 1983, une basse reconnaissable entre mille", lvl: 3 },
-  { p: "NE ME QUITTE PAS JACQUES BREL", h: "Une supplique belge écrite en 1959", lvl: 3 }
+  { p: "LUNE DE MIEL", h: "Expression", lvl: 1 },
+  { p: "SAPIN DE NOEL", h: "Expression", lvl: 1 },
+  { p: "NUIT ETOILEE", h: "Expression", lvl: 1 },
+  { p: "CREPES AU SUCRE", h: "Expression", lvl: 1 },
+  { p: "PARTIE DE CARTES", h: "Expression", lvl: 1 },
+  { p: "PHOTO DE CLASSE", h: "Expression", lvl: 1 },
+  { p: "COURSE DE VELO", h: "Expression", lvl: 1 },
+  { p: "CADEAU DE NOEL", h: "Expression", lvl: 1 },
+  { p: "BALADE A VELO", h: "Expression", lvl: 1 },
+  { p: "TOUR DE MANEGE", h: "Expression", lvl: 1 },
+  { p: "COUCHER DE SOLEIL", h: "Expression", lvl: 1 },
+  { p: "REPAS DE FAMILLE", h: "Expression", lvl: 2 },
+  { p: "SOIREE EN FAMILLE", h: "Expression", lvl: 2 },
+  { p: "VACANCES A LA MER", h: "Expression", lvl: 2 },
+  { p: "GATEAU AU CHOCOLAT", h: "Expression", lvl: 2 },
+  { p: "PROMENADE EN FORET", h: "Expression", lvl: 2 },
+  { p: "MATCH DE FOOTBALL", h: "Expression", lvl: 2 },
+  { p: "FEU DE CHEMINEE", h: "Expression", lvl: 2 },
+  { p: "JEUX DE SOCIETE", h: "Expression", lvl: 2 },
+  { p: "BARBECUE ENTRE AMIS", h: "Expression", lvl: 2 },
+  { p: "RENTREE DES CLASSES", h: "Expression", lvl: 2 },
+  { p: "FETE DES VOISINS", h: "Expression", lvl: 2 },
+  { p: "CHASSE AUX OEUFS", h: "Expression", lvl: 2 },
+  { p: "MARCHE DE NOEL", h: "Expression", lvl: 2 },
+  { p: "CONCERT DE MUSIQUE", h: "Expression", lvl: 2 },
+  { p: "ANNIVERSAIRE SURPRISE", h: "Expression", lvl: 2 },
+  { p: "BALLADE EN MONTAGNE", h: "Expression", lvl: 2 },
+  { p: "RANDONNEE EN FAMILLE", h: "Expression", lvl: 2 },
+  { p: "GALETTE DES ROIS", h: "Expression", lvl: 2 },
+  { p: "COURS DE CUISINE", h: "Expression", lvl: 2 },
+  { p: "SORTIE AU CINEMA", h: "Expression", lvl: 2 },
+  { p: "WEEK END A LA CAMPAGNE", h: "Expression", lvl: 3 },
+  { p: "PIQUE NIQUE AU PARC", h: "Expression", lvl: 3 },
+  { p: "CABANE DANS LES ARBRES", h: "Expression", lvl: 3 },
+  { p: "NUIT SOUS LA TENTE", h: "Expression", lvl: 3 },
+  { p: "BATAILLE DE BOULES DE NEIGE", h: "Expression", lvl: 3 },
+  { p: "THRILLER MICHAEL JACKSON", h: "Chanson", lvl: 3 },
+  { p: "IMAGINE JOHN LENNON", h: "Chanson", lvl: 3 },
+  { p: "LA VIE EN ROSE EDITH PIAF", h: "Chanson", lvl: 3 },
+  { p: "BILLIE JEAN MICHAEL JACKSON", h: "Chanson", lvl: 3 },
+  { p: "NE ME QUITTE PAS JACQUES BREL", h: "Chanson", lvl: 3 }
 ];
 const WORDS = ["ORDINATEUR","ANNIVERSAIRE","PARAPLUIE","BIBLIOTHEQUE","TELEPHONE","MONTAGNE","AEROPORT","RESTAURANT","FRIGIDAIRE","ASPIRATEUR","CALENDRIER","GYMNASTIQUE","PATISSERIE","DECOUVERTE","CHOCOLATINE"];
 const FINALE_AMOUNTS = [5000,8000,10000,15000,20000];
