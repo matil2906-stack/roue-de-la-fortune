@@ -93,10 +93,9 @@
       <div id="hostPlayerList"></div>
       <button id="hostLaunch" class="btn-gold" disabled style="margin-top:10px;margin-bottom:0">En attente des joueurs...</button>
     </div>
-    <div id="hostIntroBox" class="panel" style="display:none">
-      <div class="label" style="text-align:center">Cinématique en préparation...</div>
-      <video id="hostIntroVideo" src="cinematique.mp4" playsinline style="display:none;position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;z-index:999;background:#000"></video>
-      <button id="hostSkipIntro" class="btn-outline" style="display:none;position:fixed;bottom:24px;right:24px;width:auto;padding:10px 18px;z-index:1000">Passer</button>
+    <div id="hostIntroBox" class="panel" style="display:none;text-align:center">
+      <div class="label" style="text-align:center">La cinématique passe sur l'écran télé...</div>
+      <button id="hostSkipIntro" class="btn-gold" style="margin-top:10px;margin-bottom:0">Passer</button>
     </div>
     <div id="hostReadyBox" class="panel" style="display:none;text-align:center">
       <div style="font-size:20px;font-weight:700;margin-bottom:14px" id="hostReadyMsg"></div>
@@ -310,7 +309,6 @@ function renderHost(s){
   if(s.phase==='intro'){
     showOnly('hostIntroBox');
     document.getElementById('hostStepLabel').textContent = 'Cinématique';
-    handleIntro(s, 'hostIntroVideo', true);
     return;
   }
   if(s.phase==='ready'){
@@ -385,18 +383,20 @@ function renderHost(s){
 }
 document.getElementById('hostLaunch').onclick = ()=> socket.emit('host:launch');
 document.getElementById('hostSkipIntro').onclick = ()=> socket.emit('host:skipIntro');
-function handleIntro(s, videoId, isHost){
-  const vid = document.getElementById(videoId);
-  const already = isHost ? introStartedHost : introStartedTv;
-  if(isHost) document.getElementById('hostSkipIntro').style.display='block';
-  if(already) return;
+function handleIntro(s){
+  const vid = document.getElementById('tvIntroVideo');
+  if(introStartedTv) return;
   const elapsed = Date.now()-s.introAt;
   const wait = Math.max(0, 5000-elapsed);
-  if(isHost) introStartedHost=true; else introStartedTv=true;
+  introStartedTv = true;
   setTimeout(()=>{
     vid.style.display='block'; vid.play().catch(()=>{});
-    if(isHost){ vid.onended = ()=> socket.emit('host:introEnded'); }
+    vid.onended = ()=> socket.emit('host:introEnded');
   }, wait);
+}
+function stopIntroVideo(){
+  const vid = document.getElementById('tvIntroVideo');
+  if(vid && !vid.paused){ vid.pause(); vid.currentTime = 0; }
 }
 function handleReady(s){
   document.getElementById('hostReadyMsg').textContent = 'Tenez-vous prêts' + (s.round>1?(', manche '+s.round+'...'):', le jeu va commencer...');
@@ -542,10 +542,11 @@ function renderTv(s){
   document.getElementById('tvFinaleTimer').style.display='none';
   if(s.phase==='intro'){
     document.getElementById('tvIntroBox').style.display='block';
-    handleIntro(s, 'tvIntroVideo', false);
+    handleIntro(s);
     return;
   }
   document.getElementById('tvIntroBox').style.display='none';
+  stopIntroVideo();
   if(s.phase==='ready'){
     document.getElementById('tvHandLabel').textContent = 'Tenez-vous prêts' + (s.round>1?(', manche '+s.round+'...'):', le jeu va commencer...');
     document.getElementById('tvPotsRow').innerHTML=''; document.getElementById('tvTiles').innerHTML='';
