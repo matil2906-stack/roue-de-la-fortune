@@ -1,0 +1,14 @@
+{
+  "name": "roue-de-la-fortune-server",
+  "version": "1.0.0",
+  "description": "Serveur pour La Roue de la Fortune en famille",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.8.3"
+  }
+}

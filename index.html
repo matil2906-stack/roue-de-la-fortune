@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Roue de la Fortune</title>
+<style>
+  :root{
+    --bg:#120E09; --screen:#1C1712; --panel:#22190F; --tile-off:#382C1C;
+    --gold:#F0C77E; --gold-dim:#8A7455; --muted:#D3A15A; --green:#3B6D11; --red:#A32D2D;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--gold);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;padding:16px}
+  .app{width:100%;max-width:480px}
+  h1{text-align:center;font-size:22px;letter-spacing:2px;margin:6px 0 18px}
+  .screen{display:none}
+  .screen.active{display:block}
+  .tv{background:var(--screen);border-radius:14px;padding:1.4rem 1.1rem;margin-bottom:14px;text-align:center}
+  .panel{background:var(--panel);border-radius:16px;padding:1.25rem 1rem}
+  button{font-family:inherit;font-size:15px;cursor:pointer}
+  .btn-gold{background:var(--gold);color:var(--screen);border:none;padding:14px 0;border-radius:10px;font-weight:600;width:100%;margin-bottom:10px}
+  .btn-gold:disabled{background:#4A3E2A;color:var(--gold-dim);cursor:default}
+  .btn-outline{background:transparent;color:var(--gold);border:1px solid var(--gold);padding:10px 0;border-radius:10px;width:100%}
+  .row{display:flex;gap:8px}
+  input{font-family:inherit;font-size:15px;background:#150F0A;border:1px solid #4A3E2A;color:var(--gold);padding:10px;border-radius:8px;width:100%}
+  input::placeholder{color:var(--gold-dim)}
+  .code-display{font-family:'Courier New',monospace;font-size:30px;letter-spacing:6px;font-weight:700;margin:8px 0 4px}
+  .label{font-size:12px;color:var(--muted);margin-bottom:6px;text-align:left}
+  .player-row{display:flex;justify-content:space-between;align-items:center;background:#2A2115;padding:8px 10px;border-radius:8px;margin-bottom:6px;font-size:14px}
+  .tiles{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px}
+  .word-box{display:flex;gap:3px;margin:0 4px 4px 0}
+  .tile{width:24px;height:30px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;border-radius:4px;background:var(--tile-off);color:var(--screen)}
+  .tile.shown{background:var(--gold)}
+  .status{font-size:14px;min-height:36px;line-height:1.4}
+  .pots-row{display:flex;justify-content:center;gap:16px;font-size:13px;margin-bottom:10px;flex-wrap:wrap}
+  .wheel-wrap{position:relative;display:flex;justify-content:center;margin-bottom:16px}
+  .arrow{position:absolute;top:-4px;left:50%;transform:translateX(-50%);z-index:2}
+  .spin-btns{display:flex;gap:8px;width:100%;margin-bottom:8px}
+  .spin-btns button{flex:1;margin-bottom:0}
+  .step-label{font-size:12px;color:var(--gold-dim);margin:0 0 8px;text-transform:uppercase;letter-spacing:1px}
+  .letter-grid{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:10px}
+  .letter-btn{width:30px;height:34px;background:var(--gold);color:var(--screen);border:none;border-radius:6px;font-weight:700;font-size:13px;padding:0}
+  .letter-btn:disabled{opacity:.3;background:var(--tile-off);color:var(--gold-dim)}
+  .role-card{background:var(--panel);border-radius:14px;padding:1.4rem 1rem;text-align:center;margin-bottom:14px}
+  .role-card p{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .err{color:#E88;font-size:12px;min-height:16px}
+  .backlink{display:block;text-align:center;color:var(--gold-dim);font-size:13px;margin-top:10px}
+  .totals-row{display:flex;justify-content:center;gap:14px;font-size:13px;margin:10px 0;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>LA ROUE DE LA FORTUNE</h1>
+
+  <div id="screen-home" class="screen active">
+    <div class="role-card"><p>Tu crées la partie et tu obtiens les codes</p><button id="btnHost" class="btn-gold" style="margin-bottom:0">Chef de partie</button></div>
+    <div class="role-card"><p>Tu rejoins avec le code donné par le chef de partie</p><button id="btnPlayer" class="btn-gold" style="margin-bottom:0">Joueur</button></div>
+    <div class="role-card"><p>À afficher sur la télé, avec le code télé</p><button id="btnTv" class="btn-gold" style="margin-bottom:0">Écran d'affichage</button></div>
+  </div>
+
+  <div id="screen-player-code" class="screen">
+    <div class="panel">
+      <div class="label">Code donné par le chef de partie</div>
+      <input id="playerCodeIn" style="text-transform:uppercase;text-align:center;letter-spacing:3px;margin-bottom:10px" placeholder="X7K3D9">
+      <div class="label">Ton prénom</div>
+      <input id="playerNameIn" style="margin-bottom:6px" placeholder="Ton prénom">
+      <div class="err" id="playerCodeErr"></div>
+      <button id="playerCodeGo" class="btn-gold" style="margin-top:6px">Rejoindre</button>
+    </div>
+    <a class="backlink" data-back="screen-home">← retour</a>
+  </div>
+
+  <div id="screen-tv-code" class="screen">
+    <div class="panel">
+      <div class="label">Code télé donné par le chef de partie</div>
+      <input id="tvCodeIn" style="text-transform:uppercase;text-align:center;letter-spacing:3px;margin-bottom:6px" placeholder="Code télé">
+      <div class="err" id="tvCodeErr"></div>
+      <button id="tvCodeGo" class="btn-gold" style="margin-top:6px">Afficher</button>
+    </div>
+    <a class="backlink" data-back="screen-home">← retour</a>
+  </div>
+
+  <div id="screen-host" class="screen">
+    <p class="step-label" id="hostStepLabel">Salon d'attente</p>
+    <div class="tv" id="hostTv">
+      <div class="label" style="text-align:center">Code joueurs</div>
+      <div class="code-display" id="hostCode"></div>
+      <div class="label" style="text-align:center">Code télé</div>
+      <div class="code-display" id="hostTvCode" style="font-size:20px;letter-spacing:4px"></div>
+    </div>
+    <div id="hostLobbyBox" class="panel">
+      <div class="label">Joueurs connectés</div>
+      <div id="hostPlayerList"></div>
+      <button id="hostLaunch" class="btn-gold" disabled style="margin-top:10px;margin-bottom:0">En attente des joueurs...</button>
+    </div>
+    <div id="hostIntroBox" class="panel" style="display:none">
+      <div class="label" style="text-align:center">Cinématique en préparation...</div>
+      <video id="hostIntroVideo" src="cinematique.mp4" playsinline style="display:none;position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;z-index:999;background:#000"></video>
+      <button id="hostSkipIntro" class="btn-outline" style="display:none;position:fixed;bottom:24px;right:24px;width:auto;padding:10px 18px;z-index:1000">Passer</button>
+    </div>
+    <div id="hostReadyBox" class="panel" style="display:none;text-align:center">
+      <div style="font-size:20px;font-weight:700;margin-bottom:14px" id="hostReadyMsg"></div>
+      <button id="hostStartEnigme" class="btn-gold" style="display:none;margin-bottom:0">Commencer l'énigme</button>
+    </div>
+    <div id="hostRoundEndBox" class="panel" style="display:none;text-align:center">
+      <div style="font-size:18px;font-weight:700;margin-bottom:10px" id="hostRoundEndMsg"></div>
+      <div class="totals-row" id="hostTotalsRow"></div>
+      <button id="hostNextRound" class="btn-gold" style="margin-bottom:0"></button>
+    </div>
+    <div id="hostGameBox" style="display:none">
+      <div class="tv">
+        <div id="hostHandLabel" class="label" style="margin-bottom:6px"></div>
+        <div class="pots-row" id="hostPotsRow"></div>
+        <div id="hostPhraseView">
+          <div id="hostLetterBadge" style="font-size:13px;color:var(--gold-dim);margin-bottom:4px"></div>
+          <div class="tiles" id="hostTiles"></div>
+          <div id="hostHint" style="font-size:20px;margin:4px 0 8px"></div>
+        </div>
+        <div class="status" id="hostStatus"></div>
+      </div>
+      <div id="hostWheelPanel" class="panel" style="display:none;align-items:center;flex-direction:column">
+        <div class="wheel-wrap">
+          <svg class="arrow" width="26" height="18" viewBox="0 0 26 18"><polygon points="13,18 2,2 24,2" fill="var(--gold)"/></svg>
+          <svg id="hostWheel" width="260" height="260" viewBox="0 0 340 340" style="transition:none">
+            <g id="hostWheelG"></g>
+            <circle cx="170" cy="170" r="12" fill="var(--screen)" stroke="var(--gold)" stroke-width="2"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div id="hostFinaleIntroBox" class="panel" style="display:none;text-align:center">
+      <div style="font-size:19px;font-weight:700;margin-bottom:10px" id="hostFinaleIntroMsg"></div>
+      <button id="hostLaunchFinale" class="btn-gold" style="margin-bottom:0">Lancer la roue finale</button>
+    </div>
+    <div id="hostFinaleBox" style="display:none">
+      <div class="tv">
+        <div class="label" style="margin-bottom:6px" id="hostFinaleLabel"></div>
+        <div class="tiles" id="hostFinaleTiles"></div>
+        <div style="font-size:30px;font-weight:700;color:var(--gold)" id="hostFinaleTimer"></div>
+        <div class="status" id="hostFinaleStatus"></div>
+      </div>
+    </div>
+    <div id="hostEndBox" class="panel" style="display:none;text-align:center">
+      <div style="font-size:20px;font-weight:700" id="hostEndMsg"></div>
+    </div>
+  </div>
+
+  <div id="screen-player" class="screen">
+    <p class="step-label">Ton téléphone</p>
+    <div id="playerCard" class="panel" style="display:flex;flex-direction:column;gap:10px;align-items:center"></div>
+  </div>
+
+  <div id="screen-tv" class="screen">
+    <div id="tvIntroBox" class="panel" style="display:none">
+      <div class="label" style="text-align:center">Cinématique en préparation...</div>
+      <video id="tvIntroVideo" src="cinematique.mp4" playsinline style="display:none;position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;z-index:999;background:#000"></video>
+    </div>
+    <div class="tv">
+      <div id="tvHandLabel" class="label" style="margin-bottom:6px"></div>
+      <div class="pots-row" id="tvPotsRow"></div>
+      <div id="tvPhraseView">
+        <div id="tvLetterBadge" style="font-size:13px;color:var(--gold-dim);margin-bottom:4px"></div>
+        <div class="tiles" id="tvTiles"></div>
+        <div id="tvHint" style="font-size:20px;margin:4px 0 8px"></div>
+      </div>
+      <div id="tvFinaleTiles" class="tiles" style="display:none"></div>
+      <div id="tvFinaleTimer" style="display:none;font-size:30px;font-weight:700;color:var(--gold)"></div>
+      <div class="status" id="tvStatus"></div>
+    </div>
+    <div id="tvWheelPanel" class="panel" style="display:none;align-items:center;flex-direction:column">
+      <div class="wheel-wrap">
+        <svg class="arrow" width="30" height="22" viewBox="0 0 30 22"><polygon points="15,22 2,2 28,2" fill="var(--gold)"/></svg>
+        <svg id="tvWheel" width="320" height="320" viewBox="0 0 340 340" style="transition:none">
+          <g id="tvWheelG"></g>
+          <circle cx="170" cy="170" r="12" fill="var(--screen)" stroke="var(--gold)" stroke-width="2"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let myRole = null, myPlayerId = null, myCode = null;
+let state = null;
+
+function render(){
+  if(myRole==='host') renderHost(state);
+  if(myRole==='player') renderPlayer(state);
+  if(myRole==='tv') renderTv(state);
+}
+socket.on('state', (s)=>{ state = s; render(); });
+
+function goTo(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+document.querySelectorAll('[data-back]').forEach(a=> a.onclick = ()=> goTo(a.dataset.back));
+
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const VOWELS = ['A','E','I','O','U','Y'];
+
+/* ================= ACCUEIL ================= */
+document.getElementById('btnHost').onclick = ()=>{
+  socket.emit('host:create', (res)=>{
+    if(!res || !res.ok) return;
+    myRole='host'; myCode=res.code;
+    goTo('screen-host');
+  });
+};
+document.getElementById('btnPlayer').onclick = ()=> goTo('screen-player-code');
+document.getElementById('btnTv').onclick = ()=> goTo('screen-tv-code');
+
+document.getElementById('playerCodeGo').onclick = ()=>{
+  const c = document.getElementById('playerCodeIn').value.toUpperCase().trim();
+  const n = document.getElementById('playerNameIn').value.trim() || 'Joueur';
+  socket.emit('player:join', {code:c, name:n}, (res)=>{
+    if(!res || !res.ok){ document.getElementById('playerCodeErr').textContent = (res&&res.error)||"Erreur"; return; }
+    myRole='player'; myPlayerId=res.playerId; myCode=c;
+    goTo('screen-player');
+  });
+};
+document.getElementById('tvCodeGo').onclick = ()=>{
+  const c = document.getElementById('tvCodeIn').value.toUpperCase().trim();
+  socket.emit('tv:join', {tvCode:c}, (res)=>{
+    if(!res || !res.ok){ document.getElementById('tvCodeErr').textContent = (res&&res.error)||"Erreur"; return; }
+    myRole='tv';
+    buildWheelInto('tvWheelG');
+    goTo('screen-tv');
+  });
+};
+
+/* ================= TUILES / ROUE (affichage uniquement) ================= */
+function buildTilesInto(container, phrase, revealedArr){
+  container.innerHTML = '';
+  let wordBox = document.createElement('div'); wordBox.className='word-box';
+  [...phrase].forEach((ch,i)=>{
+    if(ch===' '){ container.appendChild(wordBox); wordBox=document.createElement('div'); wordBox.className='word-box'; return; }
+    const shown = revealedArr.includes(i);
+    const tile = document.createElement('div');
+    tile.className = 'tile' + (shown?' shown':'');
+    tile.textContent = shown ? ch : '';
+    wordBox.appendChild(tile);
+  });
+  container.appendChild(wordBox);
+}
+const SEGS_DISPLAY = [
+  {v:100,c:'#378ADD'},{v:250,c:'#1D9E75'},{v:'BANQUEROUTE',c:'#E24B4A'},{v:150,c:'#BA7517'},
+  {v:400,c:'#7F77DD'},{v:200,c:'#D85A30'},{v:'PASSE',c:'#888780'},{v:300,c:'#378ADD'},
+  {v:150,c:'#1D9E75'},{v:500,c:'#D4537E'},{v:200,c:'#BA7517'},{v:350,c:'#7F77DD'}
+];
+function buildWheelInto(gId){
+  const g = document.getElementById(gId);
+  if(!g || g.dataset.built) return;
+  g.dataset.built = '1';
+  const n=SEGS_DISPLAY.length, step=360/n, cx=170, cy=170, r=155;
+  SEGS_DISPLAY.forEach((s,i)=>{
+    const a0=(i*step-90)*Math.PI/180, a1=((i+1)*step-90)*Math.PI/180;
+    const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0), x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',`M${cx},${cy} L${x0},${y0} A${r},${r} 0 0 1 ${x1},${y1} Z`);
+    path.setAttribute('fill',s.c); path.setAttribute('stroke','#1C1712'); path.setAttribute('stroke-width','1.5');
+    g.appendChild(path);
+    const mid=(a0+a1)/2, tx=cx+r*0.65*Math.cos(mid), ty=cy+r*0.65*Math.sin(mid);
+    const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.setAttribute('x',tx); text.setAttribute('y',ty);
+    text.setAttribute('font-size', typeof s.v==='number'?'16':'10');
+    text.setAttribute('fill','#fff'); text.setAttribute('text-anchor','middle');
+    text.setAttribute('transform',`rotate(${mid*180/Math.PI+90},${tx},${ty})`);
+    text.textContent = s.v;
+    g.appendChild(text);
+  });
+}
+function applyWheelRotation(svgId, rot, dur){
+  const wheel = document.getElementById(svgId); if(!wheel) return;
+  wheel.style.transition = dur ? `transform ${dur}s cubic-bezier(.15,.85,.25,1)` : 'none';
+  wheel.style.transform = `rotate(${rot}deg)`;
+}
+let lastHintKeyHost=null, lastHintKeyTv=null;
+function updateHint(elId, phraseKey, hintText, trackerName){
+  const el = document.getElementById(elId);
+  const currentKey = (trackerName==='host') ? lastHintKeyHost : lastHintKeyTv;
+  if(phraseKey === currentKey) return;
+  if(trackerName==='host') lastHintKeyHost = phraseKey; else lastHintKeyTv = phraseKey;
+  el.style.transition='none'; el.style.fontSize='20px'; el.style.color='var(--gold)';
+  el.textContent = 'Indice : ' + hintText;
+  void el.offsetWidth;
+  setTimeout(()=>{ el.style.transition='font-size 10s linear, color 10s linear'; el.style.fontSize='12px'; el.style.color='var(--gold-dim)'; },300);
+}
+
+/* ================= RENDU HÔTE ================= */
+let introStartedHost=false, introStartedTv=false, readyStartedHost=false;
+function renderHost(s){
+  if(!s) return;
+  document.getElementById('hostCode').textContent = s.code;
+  document.getElementById('hostTvCode').textContent = s.tvCode;
+  const boxes = ['hostLobbyBox','hostIntroBox','hostReadyBox','hostRoundEndBox','hostGameBox','hostFinaleIntroBox','hostFinaleBox','hostEndBox'];
+  function showOnly(id){ boxes.forEach(b=> document.getElementById(b).style.display = (b===id)? 'block' : 'none'); }
+
+  if(s.phase==='lobby'){
+    showOnly('hostLobbyBox');
+    introStartedHost=false; readyStartedHost=false;
+    document.getElementById('hostStepLabel').textContent = "Salon d'attente";
+    const el = document.getElementById('hostPlayerList');
+    el.innerHTML = s.players.map(p=>`<div class="player-row"><span>${p.name}</span><span style="color:${p.ready?'#7FD79A':'var(--muted)'}">${p.ready?'✓ prêt':'en attente'}</span></div>`).join('') || '<div style="color:var(--gold-dim);font-size:13px">Personne pour le moment</div>';
+    const allReady = s.players.length>0 && s.players.every(p=>p.ready);
+    const btn = document.getElementById('hostLaunch');
+    btn.disabled = !allReady;
+    btn.textContent = allReady ? "Lancer la partie" : "En attente des joueurs...";
+    return;
+  }
+  if(s.phase==='intro'){
+    showOnly('hostIntroBox');
+    document.getElementById('hostStepLabel').textContent = 'Cinématique';
+    handleIntro(s, 'hostIntroVideo', true);
+    return;
+  }
+  if(s.phase==='ready'){
+    showOnly('hostReadyBox');
+    document.getElementById('hostStepLabel').textContent = 'Préparation — Manche ' + s.round;
+    handleReady(s);
+    return;
+  }
+  if(s.phase==='roundend'){
+    showOnly('hostRoundEndBox');
+    document.getElementById('hostStepLabel').textContent = 'Fin de manche';
+    document.getElementById('hostRoundEndMsg').textContent = 'Fin de la manche ' + s.round + ' !';
+    document.getElementById('hostTotalsRow').innerHTML = s.players.map(p=>`<span>${p.name} : ${s.totals[p.id]||0}€</span>`).join('');
+    document.getElementById('hostNextRound').textContent = s.round<3 ? ('Passer à la manche ' + (s.round+1)) : 'Voir qui va en finale';
+    return;
+  }
+  if(s.phase==='buzz' || s.phase==='wheel'){
+    showOnly('hostGameBox');
+    document.getElementById('hostStepLabel').textContent = (s.phase==='buzz'?'Prendre la main':'Le jeu') + ' — Manche ' + s.round;
+    document.getElementById('hostStatus').textContent = s.status;
+    if(s.phase==='buzz'){
+      document.getElementById('hostHandLabel').textContent = 'Les lettres apparaissent...';
+      document.getElementById('hostPotsRow').innerHTML='';
+      document.getElementById('hostPhraseView').style.display='block';
+      document.getElementById('hostHint').textContent='';
+      document.getElementById('hostLetterBadge').textContent='';
+      buildTilesInto(document.getElementById('hostTiles'), s.phraseA, s.revealOrder.slice(0, s.revealedCount));
+      document.getElementById('hostWheelPanel').style.display='none';
+    } else {
+      const ap = s.players.find(pl=>pl.id===s.activePlayerId);
+      document.getElementById('hostHandLabel').textContent = (ap?ap.name:'?') + ' a la main';
+      document.getElementById('hostPotsRow').innerHTML = s.players.map(p=>
+        `<span style="color:${p.id===s.activePlayerId?'var(--gold)':'var(--gold-dim)'}">${p.name} : ${s.pots[p.id]||0}€</span>`).join('');
+      if(s.wheelVisible){
+        document.getElementById('hostPhraseView').style.display='none';
+        document.getElementById('hostWheelPanel').style.display='flex';
+        buildWheelInto('hostWheelG');
+        if(s.spin) applyWheelRotation('hostWheel', s.spin.rotation, s.spin.duration);
+      } else {
+        document.getElementById('hostWheelPanel').style.display='none';
+        document.getElementById('hostPhraseView').style.display='block';
+        buildTilesInto(document.getElementById('hostTiles'), s.phraseB, s.revealedB);
+        updateHint('hostHint', s.phraseB, s.hintB, 'host');
+        document.getElementById('hostLetterBadge').textContent = s.lastLetter ? ('Lettre proposée : ' + s.lastLetter) : '';
+      }
+    }
+    return;
+  }
+  if(s.phase==='finale-intro'){
+    showOnly('hostFinaleIntroBox');
+    document.getElementById('hostStepLabel').textContent = 'Roue finale';
+    const w = s.players.find(p=>p.id===s.finaleWinnerId);
+    document.getElementById('hostFinaleIntroMsg').textContent = (w?w.name:'?') + ' passe à la roue finale avec ' + (s.totals[s.finaleWinnerId]||0) + ' € !';
+    return;
+  }
+  if(s.phase==='finale-pick' || s.phase==='finale'){
+    showOnly('hostFinaleBox');
+    document.getElementById('hostStepLabel').textContent = 'Roue finale';
+    const w = s.players.find(p=>p.id===s.finaleWinnerId);
+    document.getElementById('hostFinaleLabel').textContent = (w?w.name:'?') + ' — roue finale';
+    buildTilesInto(document.getElementById('hostFinaleTiles'), s.finaleWord, s.finaleRevealed);
+    document.getElementById('hostFinaleTimer').textContent = s.phase==='finale' ? Math.ceil(s.finaleRemaining/1000)+'s' : '';
+    document.getElementById('hostFinaleStatus').textContent = s.status;
+    return;
+  }
+  if(s.phase==='ended'){
+    showOnly('hostEndBox');
+    document.getElementById('hostStepLabel').textContent = 'Partie terminée';
+    document.getElementById('hostEndMsg').textContent = s.status;
+    return;
+  }
+}
+document.getElementById('hostLaunch').onclick = ()=> socket.emit('host:launch');
+document.getElementById('hostSkipIntro').onclick = ()=> socket.emit('host:skipIntro');
+function handleIntro(s, videoId, isHost){
+  const vid = document.getElementById(videoId);
+  const already = isHost ? introStartedHost : introStartedTv;
+  if(isHost) document.getElementById('hostSkipIntro').style.display='block';
+  if(already) return;
+  const elapsed = Date.now()-s.introAt;
+  const wait = Math.max(0, 5000-elapsed);
+  if(isHost) introStartedHost=true; else introStartedTv=true;
+  setTimeout(()=>{
+    vid.style.display='block'; vid.play().catch(()=>{});
+    if(isHost){ vid.onended = ()=> socket.emit('host:introEnded'); }
+  }, wait);
+}
+function handleReady(s){
+  document.getElementById('hostReadyMsg').textContent = 'Tenez-vous prêts' + (s.round>1?(', manche '+s.round+'...'):', le jeu va commencer...');
+  document.getElementById('hostStartEnigme').style.display='none';
+  if(readyStartedHost) return;
+  readyStartedHost = true;
+  const elapsed = Date.now()-s.readyAt;
+  const wait = Math.max(0, 3000-elapsed);
+  setTimeout(()=>{
+    document.getElementById('hostReadyMsg').textContent = 'Le jeu commence !';
+    document.getElementById('hostStartEnigme').style.display='block';
+    readyStartedHost = false;
+  }, wait);
+}
+document.getElementById('hostStartEnigme').onclick = ()=> socket.emit('host:startEnigme');
+document.getElementById('hostNextRound').onclick = ()=> socket.emit('host:nextRound');
+document.getElementById('hostLaunchFinale').onclick = ()=> socket.emit('host:launchFinale');
+
+/* ================= JOUEUR ================= */
+function renderPlayer(s){
+  const card = document.getElementById('playerCard');
+  if(card.contains(document.activeElement) && document.activeElement.tagName==='INPUT') return;
+  if(!s || !myPlayerId){ card.innerHTML = '<div>Chargement...</div>'; return; }
+  const me = s.players.find(p=>p.id===myPlayerId);
+  if(!me){ card.innerHTML = '<div>Partie introuvable.</div>'; return; }
+
+  if(s.phase==='lobby'){
+    card.innerHTML = `<div style="font-size:15px;font-weight:600">Connecté, ${me.name} !</div>
+      <div style="color:var(--muted);font-size:12px">En attente du lancement...</div>
+      <button id="readyBtn" class="btn-gold" style="margin-bottom:0">${me.ready?'Prêt !':'Je suis prêt'}</button>`;
+    document.getElementById('readyBtn').onclick = ()=> socket.emit('player:ready');
+    return;
+  }
+  if(s.phase==='intro'){ card.innerHTML = `<div>La cinématique va commencer sur l'écran...</div><div style="color:var(--muted);font-size:12px">Regarde la télé !</div>`; return; }
+  if(s.phase==='ready'){ card.innerHTML = `<div style="font-size:16px;font-weight:600">Tenez-vous prêts${s.round>1?(', manche '+s.round):''}...</div>`; return; }
+  if(s.phase==='roundend'){ card.innerHTML = `<div style="font-size:16px;font-weight:600">Fin de la manche ${s.round} !</div><div style="color:var(--muted);font-size:13px">Ta cagnotte totale : ${s.totals[myPlayerId]||0}€</div>`; return; }
+
+  if(s.phase==='buzz'){
+    if(s.eliminated.includes(myPlayerId)){ card.innerHTML = `<div>Mauvaise réponse pour cette phrase. Patiente.</div>`; return; }
+    if(s.buzzedBy === myPlayerId){
+      card.innerHTML = `<div class="label" style="margin:0">Quel mot ou quelle phrase pensez-vous avoir trouvé ?</div>
+        <input id="guessInput" placeholder="Votre réponse">
+        <button id="sendGuess" class="btn-gold" style="margin-bottom:0">Envoyer</button>`;
+      document.getElementById('sendGuess').onclick = ()=>{
+        const val = document.getElementById('guessInput').value.trim();
+        if(!val) return;
+        socket.emit('player:answer', {answer: val});
+      };
+      return;
+    }
+    if(s.buzzedBy){ const p=s.players.find(pl=>pl.id===s.buzzedBy); card.innerHTML = `<div>${p?p.name:'Quelqu\'un'} a buzzé, patiente...</div>`; return; }
+    card.innerHTML = `<button id="buzzBtn" class="btn-gold" style="margin-bottom:0">Prendre la main</button>`;
+    document.getElementById('buzzBtn').onclick = ()=> socket.emit('player:buzz');
+    return;
+  }
+
+  if(s.phase==='wheel'){
+    if(s.activePlayerId !== myPlayerId){
+      const ap = s.players.find(p=>p.id===s.activePlayerId);
+      card.innerHTML = `<div>${ap?ap.name:'?'} a la main.</div><div style="color:var(--muted);font-size:12px">Regarde l'écran.</div>`;
+      return;
+    }
+    if(!s.pendingLetterMode){
+      card.innerHTML = `
+        <div class="spin-btns">
+          <button class="btn-gold spinbtn" data-t="3" data-d="2.8">Doucement</button>
+          <button class="btn-gold spinbtn" data-t="5" data-d="3.4">Assez vite</button>
+          <button class="btn-gold spinbtn" data-t="8" data-d="4">Vite</button>
+        </div>
+        <button id="buyVowel" class="btn-outline">Acheter une voyelle (250€)</button>
+        <button id="giveWord" class="btn-outline" style="margin-top:8px">Donner la phrase entière</button>
+        <div id="giveWordForm" class="row" style="display:none;margin-top:8px;width:100%">
+          <input id="phraseInput" placeholder="Toute la phrase">
+          <button id="submitPhrase" class="btn-gold" style="width:auto;padding:0 16px;margin-bottom:0">Valider</button>
+        </div>`;
+      card.querySelectorAll('.spinbtn').forEach(b=> b.onclick = ()=> socket.emit('player:spin', {turns:parseFloat(b.dataset.t), dur:parseFloat(b.dataset.d)}));
+      document.getElementById('buyVowel').onclick = ()=> socket.emit('player:buyVowel');
+      document.getElementById('giveWord').onclick = ()=>{
+        const f = document.getElementById('giveWordForm');
+        f.style.display = f.style.display==='flex' ? 'none' : 'flex';
+      };
+      document.getElementById('submitPhrase').onclick = ()=>{
+        const guess = document.getElementById('phraseInput').value.trim();
+        if(!guess) return;
+        socket.emit('player:giveWord', {guess});
+      };
+      return;
+    }
+    const mode = s.pendingLetterMode;
+    card.innerHTML = `<div class="letter-grid" id="letterGrid"></div>`;
+    const grid = document.getElementById('letterGrid');
+    grid.innerHTML = ALPHABET.map(L=>{
+      const used = s.usedLetters.includes(L);
+      let locked = used;
+      if(mode==='buy') locked = locked || !VOWELS.includes(L);
+      if(mode==='spin') locked = locked || VOWELS.includes(L);
+      return `<button data-l="${L}" class="letter-btn" ${locked?'disabled':''}>${L}</button>`;
+    }).join('');
+    grid.querySelectorAll('.letter-btn').forEach(b=> b.onclick = ()=> socket.emit('player:pickLetter', {letter:b.dataset.l}));
+    return;
+  }
+
+  if(s.phase==='finale-intro'){ card.innerHTML = `<div>Regarde l'écran pour voir qui va en finale...</div>`; return; }
+  if(s.phase==='finale-pick'){
+    if(s.finaleWinnerId !== myPlayerId){ card.innerHTML = `<div>Regarde la roue finale sur l'écran !</div>`; return; }
+    const chosen = s.finalePlayerLetters || [];
+    const consChosen = chosen.filter(l=>!VOWELS.includes(l)).length;
+    const vowChosen = chosen.filter(l=>VOWELS.includes(l)).length;
+    card.innerHTML = `<div class="label" style="margin:0">Choisis ${3-consChosen} consonne(s) et ${1-vowChosen} voyelle</div><div class="letter-grid" id="fGrid"></div>`;
+    const grid = document.getElementById('fGrid');
+    grid.innerHTML = ALPHABET.map(L=>{
+      const already = (s.finaleAutoLetters||[]).includes(L) || chosen.includes(L);
+      let locked = already;
+      if(VOWELS.includes(L) && vowChosen>=1) locked = true;
+      if(!VOWELS.includes(L) && consChosen>=3) locked = true;
+      return `<button data-l="${L}" class="letter-btn" ${locked?'disabled':''}>${L}</button>`;
+    }).join('');
+    grid.querySelectorAll('.letter-btn').forEach(b=> b.onclick = ()=> socket.emit('player:finaleLetter', {letter:b.dataset.l}));
+    return;
+  }
+  if(s.phase==='finale'){
+    if(s.finaleWinnerId !== myPlayerId){ card.innerHTML = `<div>Regarde la roue finale sur l'écran !</div>`; return; }
+    if(s.finaleAnswering){
+      card.innerHTML = `<div class="label" style="margin:0">Quel est le mot ?</div><input id="finaleGuess" placeholder="Ta réponse"><button id="finaleSend" class="btn-gold" style="margin-bottom:0">Envoyer</button>`;
+      document.getElementById('finaleSend').onclick = ()=>{
+        const val = document.getElementById('finaleGuess').value.trim();
+        socket.emit('player:finaleAnswer', {guess: val});
+      };
+      return;
+    }
+    card.innerHTML = `<button id="finaleBuzz" class="btn-gold" style="margin-bottom:0">Buzzer, je pense savoir !</button>`;
+    document.getElementById('finaleBuzz').onclick = ()=> socket.emit('player:finaleBuzz');
+    return;
+  }
+  if(s.phase==='ended'){ card.innerHTML = `<div style="font-size:16px;font-weight:600">${s.status}</div>`; return; }
+}
+
+/* ================= ÉCRAN D'AFFICHAGE ================= */
+function renderTv(s){
+  if(!s) return;
+  document.getElementById('tvStatus').textContent = s.status;
+  document.getElementById('tvFinaleTiles').style.display='none';
+  document.getElementById('tvFinaleTimer').style.display='none';
+  if(s.phase==='intro'){
+    document.getElementById('tvIntroBox').style.display='block';
+    handleIntro(s, 'tvIntroVideo', false);
+    return;
+  }
+  document.getElementById('tvIntroBox').style.display='none';
+  if(s.phase==='ready'){
+    document.getElementById('tvHandLabel').textContent = 'Tenez-vous prêts' + (s.round>1?(', manche '+s.round+'...'):', le jeu va commencer...');
+    document.getElementById('tvPotsRow').innerHTML=''; document.getElementById('tvTiles').innerHTML='';
+    document.getElementById('tvHint').textContent=''; document.getElementById('tvLetterBadge').textContent='';
+    document.getElementById('tvWheelPanel').style.display='none';
+    return;
+  }
+  if(s.phase==='roundend'){
+    document.getElementById('tvHandLabel').textContent = 'Fin de la manche ' + s.round + ' !';
+    document.getElementById('tvPotsRow').innerHTML = s.players.map(p=>`<span>${p.name} : ${s.totals[p.id]||0}€</span>`).join('');
+    document.getElementById('tvTiles').innerHTML=''; document.getElementById('tvHint').textContent=''; document.getElementById('tvLetterBadge').textContent='';
+    document.getElementById('tvWheelPanel').style.display='none';
+    return;
+  }
+  if(s.phase==='lobby'){
+    introStartedTv=false;
+    document.getElementById('tvHandLabel').textContent = 'En attente du lancement de la partie...';
+    document.getElementById('tvPotsRow').innerHTML=''; document.getElementById('tvTiles').innerHTML='';
+    document.getElementById('tvHint').textContent=''; document.getElementById('tvLetterBadge').textContent='';
+    document.getElementById('tvWheelPanel').style.display='none';
+  } else if(s.phase==='buzz'){
+    document.getElementById('tvHandLabel').textContent = 'Les lettres apparaissent... (Manche ' + s.round + ')';
+    document.getElementById('tvPotsRow').innerHTML='';
+    document.getElementById('tvPhraseView').style.display='block';
+    document.getElementById('tvHint').textContent=''; document.getElementById('tvLetterBadge').textContent='';
+    buildTilesInto(document.getElementById('tvTiles'), s.phraseA, s.revealOrder.slice(0, s.revealedCount));
+    document.getElementById('tvWheelPanel').style.display='none';
+  } else if(s.phase==='wheel'){
+    const ap = s.players.find(p=>p.id===s.activePlayerId);
+    document.getElementById('tvHandLabel').textContent = (ap?ap.name+' a la main':'Manche terminée');
+    document.getElementById('tvPotsRow').innerHTML = s.players.map(p=>
+      `<span style="color:${p.id===s.activePlayerId?'var(--gold)':'var(--gold-dim)'}">${p.name} : ${s.pots[p.id]||0}€</span>`).join('');
+    if(s.wheelVisible){
+      document.getElementById('tvPhraseView').style.display='none';
+      document.getElementById('tvWheelPanel').style.display='flex';
+      if(s.spin) applyWheelRotation('tvWheel', s.spin.rotation, s.spin.duration);
+    } else {
+      document.getElementById('tvWheelPanel').style.display='none';
+      document.getElementById('tvPhraseView').style.display='block';
+      buildTilesInto(document.getElementById('tvTiles'), s.phraseB, s.revealedB);
+      updateHint('tvHint', s.phraseB, s.hintB, 'tv');
+      document.getElementById('tvLetterBadge').textContent = s.lastLetter ? ('Lettre proposée : ' + s.lastLetter) : '';
+    }
+  } else if(s.phase==='finale-intro'){
+    const w = s.players.find(p=>p.id===s.finaleWinnerId);
+    document.getElementById('tvHandLabel').textContent = (w?w.name:'?') + ' passe à la roue finale !';
+    document.getElementById('tvPotsRow').innerHTML=''; document.getElementById('tvTiles').innerHTML='';
+    document.getElementById('tvWheelPanel').style.display='none';
+  } else if(s.phase==='finale-pick' || s.phase==='finale'){
+    const w = s.players.find(p=>p.id===s.finaleWinnerId);
+    document.getElementById('tvHandLabel').textContent = 'Roue finale — ' + (w?w.name:'?');
+    document.getElementById('tvPotsRow').innerHTML='';
+    document.getElementById('tvWheelPanel').style.display='none';
+    document.getElementById('tvFinaleTiles').style.display='flex';
+    buildTilesInto(document.getElementById('tvFinaleTiles'), s.finaleWord, s.finaleRevealed);
+    if(s.phase==='finale'){
+      document.getElementById('tvFinaleTimer').style.display='block';
+      document.getElementById('tvFinaleTimer').textContent = Math.ceil(s.finaleRemaining/1000)+'s';
+    }
+  } else if(s.phase==='ended'){
+    document.getElementById('tvHandLabel').textContent = 'Partie terminée';
+    document.getElementById('tvPotsRow').innerHTML=''; document.getElementById('tvTiles').innerHTML='';
+    document.getElementById('tvWheelPanel').style.display='none';
+  }
+}
+</script>
+</body>
+</html>
