@@ -380,6 +380,8 @@ function passHand(code){
 }
 
 /* ================= SOCKET.IO ================= */
+let lastGameCode = null;
+
 io.on('connection', (socket)=>{
 
   socket.on('host:create', (cb)=>{
@@ -397,6 +399,7 @@ io.on('connection', (socket)=>{
       finaleAmount:0, finaleRemaining:15000, finaleRunning:false, finaleAnswering:false,
       _buzzTimer:null, _finaleTimer:null
     };
+    lastGameCode = code;
     socket.join(room(code));
     socket.data.code = code; socket.data.role = 'host';
     if(cb) cb({ ok:true, code, tvCode });
@@ -424,6 +427,14 @@ io.on('connection', (socket)=>{
     socket.data.code = entry.code; socket.data.role='tv';
     if(cb) cb({ok:true});
     broadcast(entry.code);
+  });
+
+  socket.on('tv:joinLatest', (cb)=>{
+    if(!lastGameCode || !games[lastGameCode]){ if(cb) cb({ok:false, error:"Aucune partie en cours."}); return; }
+    socket.join(room(lastGameCode));
+    socket.data.code = lastGameCode; socket.data.role='tv';
+    if(cb) cb({ok:true});
+    broadcast(lastGameCode);
   });
 
   socket.on('player:ready', ()=>{
@@ -545,9 +556,19 @@ io.on('connection', (socket)=>{
 
   socket.on('player:pickLetter', ({letter})=>{
     const {code, playerId} = socket.data; const g = games[code]; if(!g || g.activePlayerId!==playerId || !g.pendingLetterMode) return;
+    const wasAllConsUsed = consonantsOf(g.phraseB).every(c=> g.usedLetters.includes(c));
     g.usedLetters.push(letter); g.lastLetter = letter;
     const mode = g.pendingLetterMode; g.pendingLetterMode = null; g.status='Révélation...';
-    broadcast(code);
+    const consList = consonantsOf(g.phraseB);
+    const nowAllConsUsed = consList.length>0 && consList.every(c=> g.usedLetters.includes(c));
+    g.canGiveWord = canGiveWord(g);
+    if(nowAllConsUsed && !wasAllConsUsed){
+      g.showConsBanner = true;
+      broadcast(code);
+      setTimeout(()=>{ const gg=games[code]; if(!gg) return; gg.showConsBanner=false; broadcast(code); }, 3000);
+    } else {
+      broadcast(code);
+    }
     const matches = [];
     [...g.phraseB].forEach((c,i)=>{ if(c===letter) matches.push(i); });
     revealSequence(code, matches, 0, mode, playerId);
@@ -555,6 +576,11 @@ io.on('connection', (socket)=>{
 
   socket.on('player:giveWord', ({guess})=>{
     const {code, playerId} = socket.data; const g = games[code]; if(!g || g.activePlayerId!==playerId) return;
+    if(!canGiveWord(g)){
+      g.status = "Il faut au moins 75% de la phrase révélée pour la donner.";
+      broadcast(code);
+      return;
+    }
     const p = g.players.find(pl=>pl.id===playerId);
     if(normalize(guess) === normalize(g.phraseB)){
       g.revealedB = g.phraseB.split('').map((_,k)=>k);
