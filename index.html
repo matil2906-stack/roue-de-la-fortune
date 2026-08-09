@@ -85,8 +85,10 @@
     <div class="tv" id="hostTv">
       <div class="label" style="text-align:center">Code joueurs</div>
       <div class="code-display" id="hostCode"></div>
+      <img id="hostQrJoin" style="width:120px;height:120px;border-radius:8px;margin-bottom:10px" alt="QR code pour rejoindre">
       <div class="label" style="text-align:center">Code télé</div>
       <div class="code-display" id="hostTvCode" style="font-size:20px;letter-spacing:4px"></div>
+      <img id="hostQrTv" style="width:100px;height:100px;border-radius:8px" alt="QR code écran d'affichage">
     </div>
     <div id="hostLobbyBox" class="panel">
       <div class="label">Joueurs connectés</div>
@@ -191,6 +193,20 @@ function render(){
 }
 socket.on('state', (s)=>{ state = s; render(); });
 
+/* Lien scanné via QR code : ?join=CODE ou ?tv=CODE */
+(function checkScannedLink(){
+  const params = new URLSearchParams(window.location.search);
+  const joinCode = params.get('join');
+  const tvCode = params.get('tv');
+  if(joinCode){
+    goTo('screen-player-code');
+    document.getElementById('playerCodeIn').value = joinCode.toUpperCase();
+  } else if(tvCode){
+    goTo('screen-tv-code');
+    document.getElementById('tvCodeIn').value = tvCode.toUpperCase();
+  }
+})();
+
 function goTo(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 document.querySelectorAll('[data-back]').forEach(a=> a.onclick = ()=> goTo(a.dataset.back));
 
@@ -291,6 +307,10 @@ function renderHost(s){
   if(!s) return;
   document.getElementById('hostCode').textContent = s.code;
   document.getElementById('hostTvCode').textContent = s.tvCode;
+  const joinUrl = window.location.origin + '/?join=' + s.code;
+  const tvUrl = window.location.origin + '/?tv=' + s.tvCode;
+  document.getElementById('hostQrJoin').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(joinUrl);
+  document.getElementById('hostQrTv').src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(tvUrl);
   const boxes = ['hostLobbyBox','hostIntroBox','hostReadyBox','hostRoundEndBox','hostGameBox','hostFinaleIntroBox','hostFinaleBox','hostEndBox'];
   function showOnly(id){ boxes.forEach(b=> document.getElementById(b).style.display = (b===id)? 'block' : 'none'); }
 
