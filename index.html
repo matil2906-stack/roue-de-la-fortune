@@ -55,7 +55,7 @@
   <div id="screen-home" class="screen active">
     <div class="role-card"><p>Tu crées la partie et tu obtiens les codes</p><button id="btnHost" class="btn-gold" style="margin-bottom:0">Chef de partie</button></div>
     <div class="role-card"><p>Tu rejoins avec le code donné par le chef de partie</p><button id="btnPlayer" class="btn-gold" style="margin-bottom:0">Joueur</button></div>
-    <div class="role-card"><p>À afficher sur la télé, avec le code télé</p><button id="btnTv" class="btn-gold" style="margin-bottom:0">Écran d'affichage</button></div>
+    <div class="role-card"><p>À afficher sur la télé, connexion automatique</p><button id="btnTv" class="btn-gold" style="margin-bottom:0">Écran d'affichage</button></div>
   </div>
 
   <div id="screen-player-code" class="screen">
@@ -222,7 +222,14 @@ document.getElementById('btnHost').onclick = ()=>{
   });
 };
 document.getElementById('btnPlayer').onclick = ()=> goTo('screen-player-code');
-document.getElementById('btnTv').onclick = ()=> goTo('screen-tv-code');
+document.getElementById('btnTv').onclick = ()=>{
+  socket.emit('tv:joinLatest', (res)=>{
+    if(!res || !res.ok){ alert((res&&res.error)||"Aucune partie en cours. Crée d'abord une partie."); return; }
+    myRole='tv';
+    buildWheelInto('tvWheelG');
+    goTo('screen-tv');
+  });
+};
 
 document.getElementById('playerCodeGo').onclick = ()=>{
   const c = document.getElementById('playerCodeIn').value.toUpperCase().trim();
