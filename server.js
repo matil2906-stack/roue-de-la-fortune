@@ -237,23 +237,30 @@ function beginBuzzPhase(code){
   g.phase='buzz';
   g.revealOrder = shuffledPositions(g.phraseA);
   g.revealedCount = 0;
-  g.runningA = true; g.eliminated=[]; g.buzzedBy=null;
-  g.status = 'Les lettres apparaissent...';
-  g._buzzTimer = setInterval(()=>{
-    const gg = games[code]; if(!gg || gg.phase!=='buzz' || !gg.runningA) return;
-    if(gg.revealedCount < gg.revealOrder.length){ gg.revealedCount++; broadcast(code); }
-    else {
-      gg.runningA = false;
-      const pool = gg.players.filter(p=>!gg.eliminated.includes(p.id));
-      const winners = pool.length ? pool : gg.players;
-      const winner = winners[Math.floor(Math.random()*winners.length)];
-      gg.status = "Personne n'a trouvé à temps. " + (winner?winner.name:'?') + ' prend la main au hasard !';
-      broadcast(code);
-      clearTimers(gg);
-      setTimeout(()=> beginWheelPhase(code, winner.id), 1600);
-    }
-  }, 1000);
+  g.runningA = false; g.eliminated=[]; g.buzzedBy=null;
+  g.buzzReady = false;
+  g.status = 'La phrase apparaît...';
   broadcast(code);
+  setTimeout(()=>{
+    const g0 = games[code]; if(!g0 || g0.phase!=='buzz') return;
+    g0.buzzReady = true; g0.runningA = true;
+    g0.status = 'Les lettres apparaissent...';
+    broadcast(code);
+    g0._buzzTimer = setInterval(()=>{
+      const gg = games[code]; if(!gg || gg.phase!=='buzz' || !gg.runningA) return;
+      if(gg.revealedCount < gg.revealOrder.length){ gg.revealedCount++; broadcast(code); }
+      else {
+        gg.runningA = false;
+        const pool = gg.players.filter(p=>!gg.eliminated.includes(p.id));
+        const winners = pool.length ? pool : gg.players;
+        const winner = winners[Math.floor(Math.random()*winners.length)];
+        gg.status = "Personne n'a trouvé à temps. " + (winner?winner.name:'?') + ' prend la main au hasard !';
+        broadcast(code);
+        clearTimers(gg);
+        setTimeout(()=> beginWheelPhase(code, winner.id), 1600);
+      }
+    }, 1000);
+  }, 3000);
 }
 
 function beginWheelPhase(code, startPlayerId){
@@ -262,9 +269,16 @@ function beginWheelPhase(code, startPlayerId){
   g.phase='wheel'; g.revealedB=[]; g.usedLetters=[]; g.activePlayerId=startPlayerId;
   g.pots={}; g.players.forEach(p=> g.pots[p.id]=0);
   g.streak=0; g.spin=null; g.pendingLetterMode=null; g.wheelVisible=false; g.lastLetter=null;
-  const p = g.players.find(pl=>pl.id===startPlayerId);
-  g.status = (p?p.name:'?') + ' a la main. Choisis la vitesse de la roue.';
+  g.wheelReady = false;
+  g.status = 'La phrase apparaît...';
   broadcast(code);
+  setTimeout(()=>{
+    const g0 = games[code]; if(!g0 || g0.phase!=='wheel') return;
+    g0.wheelReady = true;
+    const p = g0.players.find(pl=>pl.id===startPlayerId);
+    g0.status = (p?p.name:'?') + ' a la main. Choisis la vitesse de la roue.';
+    broadcast(code);
+  }, 3000);
 }
 
 function endRound(code, winnerId){
@@ -279,7 +293,7 @@ function startNextRoundOrFinale(code){
   if(g.round < 3){
     g.round++;
     const [firstPh, secondPh] = pickTwoPhrases(g.round);
-    g.phraseA = firstPh.p; g.phraseB = secondPh.p; g.hintB = secondPh.h;
+    g.phraseA = firstPh.p; g.hintA = firstPh.h; g.phraseB = secondPh.p; g.hintB = secondPh.h;
     g.phase='ready'; g.readyAt = Date.now();
     broadcast(code);
   } else {
@@ -391,7 +405,7 @@ io.on('connection', (socket)=>{
     const [firstPh, secondPh] = pickTwoPhrases(1);
     games[code] = {
       code, tvCode, phase:'lobby', round:1, players:[], totals:{},
-      phraseA:firstPh.p, revealOrder:[], revealedCount:0, runningA:true, eliminated:[], buzzedBy:null,
+      phraseA:firstPh.p, hintA:firstPh.h, revealOrder:[], revealedCount:0, runningA:true, eliminated:[], buzzedBy:null,
       phraseB:secondPh.p, hintB:secondPh.h, revealedB:[], usedLetters:[], activePlayerId:null, pots:{}, streak:0,
       spin:null, wheelVisible:false, lastLetter:null, pendingLetterMode:null, currentGain:0, status:'',
       introAt:null, readyAt:null,
@@ -513,7 +527,7 @@ io.on('connection', (socket)=>{
   });
 
   socket.on('player:spin', ({turns, dur})=>{
-    const {code, playerId} = socket.data; const g = games[code]; if(!g || g.activePlayerId!==playerId) return;
+    const {code, playerId} = socket.data; const g = games[code]; if(!g || g.activePlayerId!==playerId || !g.wheelReady) return;
     g.wheelVisible = true; g.status = 'La roue arrive...';
     broadcast(code);
     setTimeout(()=>{
@@ -548,7 +562,7 @@ io.on('connection', (socket)=>{
   });
 
   socket.on('player:buyVowel', ()=>{
-    const {code, playerId} = socket.data; const g = games[code]; if(!g || g.activePlayerId!==playerId) return;
+    const {code, playerId} = socket.data; const g = games[code]; if(!g || g.activePlayerId!==playerId || !g.wheelReady) return;
     if((g.pots[playerId]||0) < 250){ g.status="Pas assez d'argent pour acheter une voyelle."; broadcast(code); return; }
     g.pots[playerId] -= 250; g.pendingLetterMode='buy'; g.status='Choisis la voyelle à acheter.';
     broadcast(code);
