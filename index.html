@@ -299,10 +299,11 @@ function updateHint(elId, phraseKey, hintText, trackerName){
   const currentKey = (trackerName==='host') ? lastHintKeyHost : lastHintKeyTv;
   if(phraseKey === currentKey) return;
   if(trackerName==='host') lastHintKeyHost = phraseKey; else lastHintKeyTv = phraseKey;
-  el.style.transition='none'; el.style.fontSize='20px'; el.style.color='var(--gold)';
+  el.style.transition='none';
+  el.style.fontSize='26px';
+  el.style.color='#fff';
+  el.style.fontWeight='700';
   el.textContent = 'Indice : ' + hintText;
-  void el.offsetWidth;
-  setTimeout(()=>{ el.style.transition='font-size 10s linear, color 10s linear'; el.style.fontSize='12px'; el.style.color='var(--gold-dim)'; },300);
 }
 
 /* ================= RENDU HÔTE ================= */
@@ -351,16 +352,16 @@ function renderHost(s){
     document.getElementById('hostStepLabel').textContent = (s.phase==='buzz'?'Prendre la main':'Le jeu') + ' — Manche ' + s.round;
     document.getElementById('hostStatus').textContent = s.status;
     if(s.phase==='buzz'){
-      document.getElementById('hostHandLabel').textContent = 'Les lettres apparaissent...';
+      document.getElementById('hostHandLabel').textContent = s.buzzReady ? 'Les lettres apparaissent...' : 'La phrase apparaît...';
       document.getElementById('hostPotsRow').innerHTML='';
       document.getElementById('hostPhraseView').style.display='block';
-      document.getElementById('hostHint').textContent='';
       document.getElementById('hostLetterBadge').textContent='';
       buildTilesInto(document.getElementById('hostTiles'), s.phraseA, s.revealOrder.slice(0, s.revealedCount));
+      updateHint('hostHint', s.phraseA, s.hintA, 'host');
       document.getElementById('hostWheelPanel').style.display='none';
     } else {
       const ap = s.players.find(pl=>pl.id===s.activePlayerId);
-      document.getElementById('hostHandLabel').textContent = (ap?ap.name:'?') + ' a la main';
+      document.getElementById('hostHandLabel').textContent = s.wheelReady ? ((ap?ap.name:'?') + ' a la main') : 'La phrase apparaît...';
       document.getElementById('hostPotsRow').innerHTML = s.players.map(p=>
         `<span style="color:${p.id===s.activePlayerId?'var(--gold)':'var(--gold-dim)'}">${p.name} : ${s.pots[p.id]||0}€</span>`).join('');
       if(s.wheelVisible){
@@ -469,6 +470,7 @@ function renderPlayer(s){
       return;
     }
     if(s.buzzedBy){ const p=s.players.find(pl=>pl.id===s.buzzedBy); card.innerHTML = `<div>${p?p.name:'Quelqu\'un'} a buzzé, patiente...</div>`; return; }
+    if(!s.buzzReady){ card.innerHTML = `<div>La phrase apparaît sur l'écran...</div>`; return; }
     card.innerHTML = `<button id="buzzBtn" class="btn-gold" style="margin-bottom:0">Prendre la main</button>`;
     document.getElementById('buzzBtn').onclick = ()=> socket.emit('player:buzz');
     return;
@@ -480,6 +482,10 @@ function renderPlayer(s){
     if(s.activePlayerId !== myPlayerId){
       const ap = s.players.find(p=>p.id===s.activePlayerId);
       card.innerHTML = potLine + `<div>${ap?ap.name:'?'} a la main.</div><div style="color:var(--muted);font-size:12px">Regarde l'écran.</div>`;
+      return;
+    }
+    if(!s.wheelReady){
+      card.innerHTML = potLine + `<div>La phrase apparaît sur l'écran...</div>`;
       return;
     }
     if(!s.pendingLetterMode){
@@ -591,15 +597,16 @@ function renderTv(s){
     document.getElementById('tvHint').textContent=''; document.getElementById('tvLetterBadge').textContent='';
     document.getElementById('tvWheelPanel').style.display='none';
   } else if(s.phase==='buzz'){
-    document.getElementById('tvHandLabel').textContent = 'Les lettres apparaissent... (Manche ' + s.round + ')';
+    document.getElementById('tvHandLabel').textContent = (s.buzzReady ? 'Les lettres apparaissent...' : 'La phrase apparaît...') + ' (Manche ' + s.round + ')';
     document.getElementById('tvPotsRow').innerHTML='';
     document.getElementById('tvPhraseView').style.display='block';
-    document.getElementById('tvHint').textContent=''; document.getElementById('tvLetterBadge').textContent='';
+    document.getElementById('tvLetterBadge').textContent='';
     buildTilesInto(document.getElementById('tvTiles'), s.phraseA, s.revealOrder.slice(0, s.revealedCount));
+    updateHint('tvHint', s.phraseA, s.hintA, 'tv');
     document.getElementById('tvWheelPanel').style.display='none';
   } else if(s.phase==='wheel'){
     const ap = s.players.find(p=>p.id===s.activePlayerId);
-    document.getElementById('tvHandLabel').textContent = (ap?ap.name+' a la main':'Manche terminée');
+    document.getElementById('tvHandLabel').textContent = s.wheelReady ? (ap?ap.name+' a la main':'Manche terminée') : 'La phrase apparaît...';
     document.getElementById('tvPotsRow').innerHTML = s.players.map(p=>
       `<span style="color:${p.id===s.activePlayerId?'var(--gold)':'var(--gold-dim)'}">${p.name} : ${s.pots[p.id]||0}€</span>`).join('');
     if(s.wheelVisible){
