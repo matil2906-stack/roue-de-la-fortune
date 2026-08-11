@@ -39,7 +39,7 @@
   .spin-btns button{flex:1;margin-bottom:0}
   .step-label{font-size:12px;color:var(--gold-dim);margin:0 0 8px;text-transform:uppercase;letter-spacing:1px}
   .letter-grid{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:10px}
-  .letter-btn{width:30px;height:34px;background:var(--gold);color:var(--screen);border:none;border-radius:6px;font-weight:700;font-size:13px;padding:0}
+  .letter-btn{width:42px;height:48px;background:var(--gold);color:var(--screen);border:none;border-radius:8px;font-weight:700;font-size:18px;padding:0}
   .letter-btn:disabled{opacity:.3;background:var(--tile-off);color:var(--gold-dim)}
   .role-card{background:var(--panel);border-radius:14px;padding:1.4rem 1rem;text-align:center;margin-bottom:14px}
   .role-card p{color:var(--muted);font-size:13px;margin:0 0 12px}
@@ -108,6 +108,7 @@
     <div id="hostGameBox" style="display:none">
       <div class="tv">
         <div id="hostHandLabel" class="label" style="margin-bottom:6px"></div>
+        <div id="hostRing" style="display:flex;justify-content:center;margin-bottom:6px"></div>
         <div class="pots-row" id="hostPotsRow"></div>
         <div id="hostPhraseView">
           <div id="hostLetterBadge" style="font-size:13px;color:var(--gold-dim);margin-bottom:4px"></div>
@@ -153,8 +154,14 @@
       <div class="label" style="text-align:center">Cinématique en préparation...</div>
       <video id="tvIntroVideo" src="cinematique.mp4" playsinline style="display:none;position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;z-index:999;background:#000"></video>
     </div>
+    <div id="tvJoinBox" class="tv" style="display:none;text-align:center">
+      <div class="label" style="text-align:center">Code pour rejoindre</div>
+      <div class="code-display" id="tvJoinCode"></div>
+      <img id="tvQrJoin" style="width:220px;height:220px;border-radius:10px" alt="QR code pour rejoindre">
+    </div>
     <div class="tv">
       <div id="tvHandLabel" class="label" style="margin-bottom:6px"></div>
+      <div id="tvRing" style="display:flex;justify-content:center;margin-bottom:6px"></div>
       <div class="pots-row" id="tvPotsRow"></div>
       <div id="tvPhraseView">
         <div id="tvLetterBadge" style="font-size:13px;color:var(--gold-dim);margin-bottom:4px"></div>
@@ -167,8 +174,8 @@
     </div>
     <div id="tvWheelPanel" class="panel" style="display:none;align-items:center;flex-direction:column">
       <div class="wheel-wrap">
-        <svg class="arrow" width="30" height="22" viewBox="0 0 30 22"><polygon points="15,22 2,2 28,2" fill="var(--gold)"/></svg>
-        <svg id="tvWheel" width="320" height="320" viewBox="0 0 340 340" style="transition:none">
+        <svg class="arrow" width="38" height="28" viewBox="0 0 38 28"><polygon points="19,28 3,3 35,3" fill="var(--gold)"/></svg>
+        <svg id="tvWheel" width="420" height="420" viewBox="0 0 340 340" style="transition:none">
           <g id="tvWheelG"></g>
           <circle cx="170" cy="170" r="12" fill="var(--screen)" stroke="var(--gold)" stroke-width="2"/>
         </svg>
@@ -189,6 +196,34 @@ function render(){
   if(myRole==='tv') renderTv(state);
 }
 socket.on('state', (s)=>{ state = s; render(); });
+
+setInterval(()=>{
+  if(!state) return;
+  if(myRole==='host'){
+    if(state.phase==='buzz' && !state.buzzReady){
+      driveLocalCountdown('hostRing', state.buzzRevealAt, state.buzzRevealMs||5000, 'hostBuzz');
+    } else if(state.phase==='wheel' && !state.wheelReady){
+      driveLocalCountdown('hostRing', state.wheelRevealAt, state.wheelRevealMs||3000, 'hostWheelReady');
+    } else {
+      const el=document.getElementById('hostRing'); if(el) el.innerHTML='';
+    }
+    if(state.phase==='finale'){
+      renderCountdownRing('hostFinaleTimer', state.finaleRemaining, 15000, 'hostFinale');
+    }
+  }
+  if(myRole==='tv'){
+    if(state.phase==='buzz' && !state.buzzReady){
+      driveLocalCountdown('tvRing', state.buzzRevealAt, state.buzzRevealMs||5000, 'tvBuzz');
+    } else if(state.phase==='wheel' && !state.wheelReady){
+      driveLocalCountdown('tvRing', state.wheelRevealAt, state.wheelRevealMs||3000, 'tvWheelReady');
+    } else {
+      const el=document.getElementById('tvRing'); if(el) el.innerHTML='';
+    }
+    if(state.phase==='finale'){
+      renderCountdownRing('tvFinaleTimer', state.finaleRemaining, 15000, 'tvFinale');
+    }
+  }
+}, 200);
 
 /* Lien scanné via QR code : ?join=CODE ou ?tv=CODE */
 (function checkScannedLink(){
@@ -281,7 +316,9 @@ function buildWheelInto(gId){
     const mid=(a0+a1)/2, tx=cx+r*0.65*Math.cos(mid), ty=cy+r*0.65*Math.sin(mid);
     const text=document.createElementNS('http://www.w3.org/2000/svg','text');
     text.setAttribute('x',tx); text.setAttribute('y',ty);
-    text.setAttribute('font-size', typeof s.v==='number'?'16':'10');
+    const label = String(s.v);
+    const fsize = typeof s.v==='number' ? '18' : (label.length>8 ? '7.5' : '11');
+    text.setAttribute('font-size', fsize);
     text.setAttribute('fill','#fff'); text.setAttribute('text-anchor','middle');
     text.setAttribute('transform',`rotate(${mid*180/Math.PI+90},${tx},${ty})`);
     text.textContent = s.v;
@@ -392,7 +429,6 @@ function renderHost(s){
     const w = s.players.find(p=>p.id===s.finaleWinnerId);
     document.getElementById('hostFinaleLabel').textContent = (w?w.name:'?') + ' — roue finale';
     buildTilesInto(document.getElementById('hostFinaleTiles'), s.finaleWord, s.finaleRevealed);
-    document.getElementById('hostFinaleTimer').textContent = s.phase==='finale' ? Math.ceil(s.finaleRemaining/1000)+'s' : '';
     document.getElementById('hostFinaleStatus').textContent = s.status;
     return;
   }
@@ -419,6 +455,48 @@ function handleIntro(s){
 function stopIntroVideo(){
   const vid = document.getElementById('tvIntroVideo');
   if(vid && !vid.paused){ vid.pause(); vid.currentTime = 0; }
+}
+
+/* ===== Chrono rond + bruit ===== */
+let audioCtx = null;
+function tickSound(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const gn = audioCtx.createGain();
+    o.connect(gn); gn.connect(audioCtx.destination);
+    o.frequency.value = 720;
+    gn.gain.setValueAtTime(0.22, audioCtx.currentTime);
+    gn.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.12);
+    o.start(); o.stop(audioCtx.currentTime+0.13);
+  }catch(e){}
+}
+const lastTickSecond = {};
+function renderCountdownRing(containerId, remainingMs, totalMs, tickKey){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  const total = totalMs>0?totalMs:1;
+  const pct = Math.max(0, Math.min(1, remainingMs/total));
+  const r = 46, circumference = 2*Math.PI*r;
+  const offset = circumference*(1-pct);
+  const secs = Math.max(0, Math.ceil(remainingMs/1000));
+  el.innerHTML = `<svg width="120" height="120" viewBox="0 0 120 120">
+    <circle cx="60" cy="60" r="${r}" stroke="#382C1C" stroke-width="9" fill="none"/>
+    <circle cx="60" cy="60" r="${r}" stroke="#F0C77E" stroke-width="9" fill="none"
+      stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+      stroke-linecap="round" transform="rotate(-90 60 60)" style="transition:stroke-dashoffset 0.2s linear"/>
+    <text x="60" y="72" text-anchor="middle" font-size="38" font-weight="700" fill="#fff">${secs}</text>
+  </svg>`;
+  if(tickKey && secs !== lastTickSecond[tickKey] && secs>=0 && remainingMs<totalMs){
+    lastTickSecond[tickKey] = secs;
+    tickSound();
+  }
+}
+function driveLocalCountdown(containerId, revealAt, totalMs, tickKey, loopVarName){
+  if(!revealAt){ const el=document.getElementById(containerId); if(el) el.innerHTML=''; return; }
+  const elapsed = Date.now() - revealAt;
+  const remaining = Math.max(0, totalMs - elapsed);
+  renderCountdownRing(containerId, remaining, totalMs, tickKey);
 }
 function handleReady(s){
   document.getElementById('hostReadyMsg').textContent = 'Tenez-vous prêts' + (s.round>1?(', manche '+s.round+'...'):', le jeu va commencer...');
@@ -569,6 +647,12 @@ function renderTv(s){
   document.getElementById('tvStatus').textContent = s.status;
   document.getElementById('tvFinaleTiles').style.display='none';
   document.getElementById('tvFinaleTimer').style.display='none';
+  document.getElementById('tvJoinBox').style.display = (s.phase==='lobby') ? 'block' : 'none';
+  if(s.phase==='lobby'){
+    document.getElementById('tvJoinCode').textContent = s.code;
+    const joinUrl = window.location.origin + '/?join=' + s.code;
+    document.getElementById('tvQrJoin').src = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' + encodeURIComponent(joinUrl);
+  }
   if(s.phase==='intro'){
     document.getElementById('tvIntroBox').style.display='block';
     handleIntro(s);
@@ -634,7 +718,6 @@ function renderTv(s){
     buildTilesInto(document.getElementById('tvFinaleTiles'), s.finaleWord, s.finaleRevealed);
     if(s.phase==='finale'){
       document.getElementById('tvFinaleTimer').style.display='block';
-      document.getElementById('tvFinaleTimer').textContent = Math.ceil(s.finaleRemaining/1000)+'s';
     }
   } else if(s.phase==='ended'){
     document.getElementById('tvHandLabel').textContent = 'Partie terminée';
