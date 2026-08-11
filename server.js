@@ -27,6 +27,10 @@ const SEGS = [
   { v: 400, c: '#7F77DD' }, { v: 200, c: '#D85A30' }, { v: 'PASSE', c: '#888780' }, { v: 300, c: '#378ADD' },
   { v: 150, c: '#1D9E75' }, { v: 500, c: '#D4537E' }, { v: 200, c: '#BA7517' }, { v: 350, c: '#7F77DD' }
 ];
+function segsForRound(round){
+  const mult = round===3 ? 2 : (round===2 ? 1.5 : 1);
+  return SEGS.map(s=> typeof s.v==='number' ? { ...s, v: Math.round(s.v*mult/50)*50 } : s);
+}
 const PHRASES = [
   { p: "LUNE DE MIEL", h: "💬 Expression", lvl: 1 },
   { p: "SAPIN DE NOEL", h: "🎉 Fête", lvl: 1 },
@@ -221,6 +225,10 @@ function shuffledPositions(phrase){
 }
 function landedSegmentFromRotation(rot){
   const n=SEGS.length, step=360/n; const norm=((360-(rot%360))%360); return SEGS[Math.floor(norm/step)%n];
+}
+function landedSegmentForRound(rot, round){
+  const segs = segsForRound(round||1);
+  const n=segs.length, step=360/n; const norm=((360-(rot%360))%360); return segs[Math.floor(norm/step)%n];
 }
 
 /* ================= PARTIES EN MÉMOIRE ================= */
@@ -552,7 +560,7 @@ io.on('connection', (socket)=>{
       broadcast(code);
       setTimeout(()=>{
         const g2 = games[code]; if(!g2) return;
-        const landed = landedSegmentFromRotation(g2.spin.rotation);
+        const landed = landedSegmentForRound(g2.spin.rotation, g2.round);
         g2.status = (typeof landed.v==='number') ? ('Roue : '+landed.v+' €') : landed.v;
         broadcast(code);
         setTimeout(()=>{
