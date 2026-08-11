@@ -301,19 +301,27 @@ const SEGS_DISPLAY = [
   {v:400,c:'#7F77DD'},{v:200,c:'#D85A30'},{v:'PASSE',c:'#888780'},{v:300,c:'#378ADD'},
   {v:150,c:'#1D9E75'},{v:500,c:'#D4537E'},{v:200,c:'#BA7517'},{v:350,c:'#7F77DD'}
 ];
-function buildWheelInto(gId){
+function segsForRoundDisplay(round){
+  const mult = round===3 ? 2 : (round===2 ? 1.5 : 1);
+  return SEGS_DISPLAY.map(s=> typeof s.v==='number' ? {...s, v: Math.round(s.v*mult/50)*50} : s);
+}
+function buildWheelInto(gId, round){
   const g = document.getElementById(gId);
-  if(!g || g.dataset.built) return;
-  g.dataset.built = '1';
-  const n=SEGS_DISPLAY.length, step=360/n, cx=170, cy=170, r=155;
-  SEGS_DISPLAY.forEach((s,i)=>{
+  if(!g) return;
+  const r = round||1;
+  if(g.dataset.builtRound == r) return;
+  g.dataset.builtRound = r;
+  g.innerHTML = '';
+  const segs = segsForRoundDisplay(r);
+  const n=segs.length, step=360/n, cx=170, cy=170, r2=155;
+  segs.forEach((s,i)=>{
     const a0=(i*step-90)*Math.PI/180, a1=((i+1)*step-90)*Math.PI/180;
-    const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0), x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    const x0=cx+r2*Math.cos(a0), y0=cy+r2*Math.sin(a0), x1=cx+r2*Math.cos(a1), y1=cy+r2*Math.sin(a1);
     const path=document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d',`M${cx},${cy} L${x0},${y0} A${r},${r} 0 0 1 ${x1},${y1} Z`);
+    path.setAttribute('d',`M${cx},${cy} L${x0},${y0} A${r2},${r2} 0 0 1 ${x1},${y1} Z`);
     path.setAttribute('fill',s.c); path.setAttribute('stroke','#1C1712'); path.setAttribute('stroke-width','1.5');
     g.appendChild(path);
-    const mid=(a0+a1)/2, tx=cx+r*0.65*Math.cos(mid), ty=cy+r*0.65*Math.sin(mid);
+    const mid=(a0+a1)/2, tx=cx+r2*0.65*Math.cos(mid), ty=cy+r2*0.65*Math.sin(mid);
     const text=document.createElementNS('http://www.w3.org/2000/svg','text');
     text.setAttribute('x',tx); text.setAttribute('y',ty);
     const label = String(s.v);
@@ -404,7 +412,7 @@ function renderHost(s){
       if(s.wheelVisible){
         document.getElementById('hostPhraseView').style.display='none';
         document.getElementById('hostWheelPanel').style.display='flex';
-        buildWheelInto('hostWheelG');
+        buildWheelInto('hostWheelG', s.round);
         if(s.spin) applyWheelRotation('hostWheel', s.spin.rotation, s.spin.duration);
       } else {
         document.getElementById('hostWheelPanel').style.display='none';
@@ -599,7 +607,6 @@ function renderPlayer(s){
       const used = s.usedLetters.includes(L);
       let locked = used;
       if(mode==='buy') locked = locked || !VOWELS.includes(L);
-      if(mode==='spin') locked = locked || VOWELS.includes(L);
       return `<button data-l="${L}" class="letter-btn" ${locked?'disabled':''}>${L}</button>`;
     }).join('');
     grid.querySelectorAll('.letter-btn').forEach(b=> b.onclick = ()=> socket.emit('player:pickLetter', {letter:b.dataset.l}));
@@ -697,6 +704,7 @@ function renderTv(s){
     if(s.wheelVisible){
       document.getElementById('tvPhraseView').style.display='none';
       document.getElementById('tvWheelPanel').style.display='flex';
+      buildWheelInto('tvWheelG', s.round);
       if(s.spin) applyWheelRotation('tvWheel', s.spin.rotation, s.spin.duration);
     } else {
       document.getElementById('tvWheelPanel').style.display='none';
@@ -707,8 +715,13 @@ function renderTv(s){
     }
   } else if(s.phase==='finale-intro'){
     const w = s.players.find(p=>p.id===s.finaleWinnerId);
-    document.getElementById('tvHandLabel').textContent = (w?w.name:'?') + ' passe à la roue finale !';
+    document.getElementById('tvHandLabel').textContent = '';
     document.getElementById('tvPotsRow').innerHTML=''; document.getElementById('tvTiles').innerHTML='';
+    document.getElementById('tvHint').textContent = (w?w.name.toUpperCase():'?') + ' EN FINALE !';
+    document.getElementById('tvHint').style.fontSize = '34px';
+    document.getElementById('tvHint').style.color = '#fff';
+    document.getElementById('tvHint').style.fontWeight = '800';
+    document.getElementById('tvHint').style.textAlign = 'center';
     document.getElementById('tvWheelPanel').style.display='none';
   } else if(s.phase==='finale-pick' || s.phase==='finale'){
     const w = s.players.find(p=>p.id===s.finaleWinnerId);
