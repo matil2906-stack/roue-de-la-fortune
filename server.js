@@ -205,7 +205,15 @@ function pickTwoPhrases(lvl){
   return [first, second];
 }
 function randCode(len, chars){ let c=''; for(let i=0;i<len;i++) c+=chars[Math.floor(Math.random()*chars.length)]; return c; }
-function normalize(str){ return (str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim().replace(/\s+/g,' '); }
+function normalize(str){
+  return (str||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toUpperCase()
+    .replace(/['''`´]/g,' ')
+    .replace(/[^A-Z0-9 ]/g,' ')
+    .trim()
+    .replace(/\s+/g,' ');
+}
 function shuffledPositions(phrase){
   const positions = [...phrase].map((c,i)=> c!==' ' ? i : null).filter(x=>x!==null);
   for(let i=positions.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [positions[i],positions[j]]=[positions[j],positions[i]]; }
