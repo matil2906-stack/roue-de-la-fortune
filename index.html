@@ -610,17 +610,18 @@ function renderPlayer(s){
   if(s.phase==='finale-pick'){
     if(s.finaleWinnerId !== myPlayerId){ card.innerHTML = `<div>Regarde la roue finale sur l'écran !</div>`; return; }
     const chosen = s.finalePlayerLetters || [];
+    const auto = s.finaleAutoLetters || [];
     const consChosen = chosen.filter(l=>!VOWELS.includes(l)).length;
     const vowChosen = chosen.filter(l=>VOWELS.includes(l)).length;
-    card.innerHTML = `<div class="label" style="margin:0">Choisis ${3-consChosen} consonne(s) et ${1-vowChosen} voyelle</div><div class="letter-grid" id="fGrid"></div>`;
+    const pickingVowel = consChosen>=3;
+    const pool = ALPHABET.filter(L=>{
+      if(auto.includes(L) || chosen.includes(L)) return false;
+      return pickingVowel ? VOWELS.includes(L) : !VOWELS.includes(L);
+    });
+    const label = pickingVowel ? 'Choisis 1 voyelle' : `Choisis ${3-consChosen} consonne(s)`;
+    card.innerHTML = `<div class="label" style="margin:0">${label}</div><div class="letter-grid" id="fGrid"></div>`;
     const grid = document.getElementById('fGrid');
-    grid.innerHTML = ALPHABET.map(L=>{
-      const already = (s.finaleAutoLetters||[]).includes(L) || chosen.includes(L);
-      let locked = already;
-      if(VOWELS.includes(L) && vowChosen>=1) locked = true;
-      if(!VOWELS.includes(L) && consChosen>=3) locked = true;
-      return `<button data-l="${L}" class="letter-btn" ${locked?'disabled':''}>${L}</button>`;
-    }).join('');
+    grid.innerHTML = pool.map(L=> `<button data-l="${L}" class="letter-btn">${L}</button>`).join('');
     grid.querySelectorAll('.letter-btn').forEach(b=> b.onclick = ()=> socket.emit('player:finaleLetter', {letter:b.dataset.l}));
     return;
   }
