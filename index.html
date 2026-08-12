@@ -202,6 +202,8 @@ setInterval(()=>{
   if(myRole==='host'){
     if(state.phase==='buzz' && !state.buzzReady){
       driveLocalCountdown('hostRing', state.buzzRevealAt, state.buzzRevealMs||5000, 'hostBuzz');
+    } else if(state.phase==='buzz' && state.retryAt){
+      driveLocalCountdown('hostRing', state.retryAt, state.retryMs||5000, 'hostRetry');
     } else if(state.phase==='wheel' && !state.wheelReady){
       driveLocalCountdown('hostRing', state.wheelRevealAt, state.wheelRevealMs||3000, 'hostWheelReady');
     } else {
@@ -214,6 +216,8 @@ setInterval(()=>{
   if(myRole==='tv'){
     if(state.phase==='buzz' && !state.buzzReady){
       driveLocalCountdown('tvRing', state.buzzRevealAt, state.buzzRevealMs||5000, 'tvBuzz');
+    } else if(state.phase==='buzz' && state.retryAt){
+      driveLocalCountdown('tvRing', state.retryAt, state.retryMs||5000, 'tvRetry');
     } else if(state.phase==='wheel' && !state.wheelReady){
       driveLocalCountdown('tvRing', state.wheelRevealAt, state.wheelRevealMs||3000, 'tvWheelReady');
     } else {
