@@ -36,26 +36,26 @@ const PHRASES = [
   { p: "SAPIN DE NOEL", h: "🎉 Fête", lvl: 1 },
   { p: "NUIT ETOILEE", h: "🌳 Nature", lvl: 1 },
   { p: "CREPES AU SUCRE", h: "🍰 Dessert", lvl: 1 },
-  { p: "PARTIE DE CARTES", h: "🎮 Jeu vidéo", lvl: 1 },
+  { p: "PARTIE DE CARTES", h: "🎉 Fête", lvl: 1 },
   { p: "PHOTO DE CLASSE", h: "👨‍👩‍👧‍👦 Famille", lvl: 1 },
   { p: "COURSE DE VELO", h: "⚽ Sport", lvl: 1 },
   { p: "CADEAU DE NOEL", h: "🎉 Fête", lvl: 1 },
   { p: "BALADE A VELO", h: "💬 Expression", lvl: 1 },
   { p: "TOUR DE MANEGE", h: "🎉 Fête", lvl: 1 },
   { p: "COUCHER DE SOLEIL", h: "🌳 Nature", lvl: 1 },
-  { p: "COURS DE DANSE", h: "😂 Humour", lvl: 1 },
+  { p: "COURS DE DANSE", h: "🎉 Fête", lvl: 1 },
   { p: "JOUR DE PLUIE", h: "🌳 Nature", lvl: 1 },
-  { p: "PANNE DE COURANT", h: "🏠 Objet", lvl: 1 },
-  { p: "RETARD DE TRAIN", h: "🏠 Objet", lvl: 1 },
+  { p: "PANNE DE COURANT", h: "💬 Expression", lvl: 1 },
+  { p: "RETARD DE TRAIN", h: "💬 Expression", lvl: 1 },
   { p: "PAUSE DEJEUNER", h: "👨‍👩‍👧‍👦 Famille", lvl: 1 },
   { p: "LISTE DE COURSES", h: "🏠 Objet", lvl: 1 },
   { p: "SIESTE APRES MIDI", h: "👨‍👩‍👧‍👦 Famille", lvl: 1 },
   { p: "CAFE DU MATIN", h: "🥤 Boisson", lvl: 1 },
-  { p: "DOUCHE FROIDE", h: "🏠 Objet", lvl: 1 },
+  { p: "DOUCHE FROIDE", h: "💬 Expression", lvl: 1 },
   { p: "LAVAGE DE VOITURE", h: "🚗 Voiture", lvl: 1 },
   { p: "PROMENADE DU CHIEN", h: "🐶 Animal", lvl: 1 },
   { p: "VISITE CHEZ LE DENTISTE", h: "💼 Métier", lvl: 1 },
-  { p: "ATTENTE A LA CAISSE", h: "😂 Humour", lvl: 1 },
+  { p: "ATTENTE A LA CAISSE", h: "💬 Expression", lvl: 1 },
   { p: "EMBOUTEILLAGE DU SOIR", h: "🚗 Voiture", lvl: 1 },
   { p: "REVEIL MATINAL", h: "👨‍👩‍👧‍👦 Famille", lvl: 1 },
   { p: "LUNDI MATIN", h: "👨‍👩‍👧‍👦 Famille", lvl: 1 },
@@ -66,16 +66,16 @@ const PHRASES = [
   { p: "BAIN MOUSSANT", h: "🏠 Objet", lvl: 1 },
   { p: "LESSIVE DU WEEK END", h: "🏠 Objet", lvl: 1 },
   { p: "REPASSAGE DU LINGE", h: "🏠 Objet", lvl: 1 },
-  { p: "COURSES AU MARCHE", h: "🍕 Plat", lvl: 1 },
+  { p: "COURSES AU MARCHE", h: "💬 Expression", lvl: 1 },
   { p: "VISITE AU ZOO", h: "🐶 Animal", lvl: 1 },
   { p: "SORTIE A LA PISCINE", h: "⚽ Sport", lvl: 1 },
   { p: "PARTIE DE PECHE", h: "⚽ Sport", lvl: 1 },
   { p: "TOURNOI DE PETANQUE", h: "⚽ Sport", lvl: 1 },
   { p: "MATCH DE TENNIS", h: "⚽ Sport", lvl: 1 },
   { p: "COURS DE NATATION", h: "⚽ Sport", lvl: 1 },
-  { p: "LECON DE PIANO", h: "😂 Humour", lvl: 1 },
+  { p: "LECON DE PIANO", h: "💬 Expression", lvl: 1 },
   { p: "DEVOIRS DU SOIR", h: "👨‍👩‍👧‍👦 Famille", lvl: 1 },
-  { p: "CARTABLE OUBLIE", h: "😂 Humour", lvl: 1 },
+  { p: "CARTABLE OUBLIE", h: "💬 Expression", lvl: 1 },
   { p: "BUS SCOLAIRE", h: "🏠 Objet", lvl: 1 },
   { p: "RECREATION A L ECOLE", h: "👨‍👩‍👧‍👦 Famille", lvl: 1 },
   { p: "CANTINE DE L ECOLE", h: "🍕 Plat", lvl: 1 },
@@ -162,8 +162,8 @@ const PHRASES = [
   { p: "TOURNER AUTOUR DU POT", h: "💬 Expression", lvl: 3 },
   { p: "AVOIR LE CAFARD", h: "💬 Expression", lvl: 3 },
   { p: "PASSER UNE NUIT BLANCHE", h: "💬 Expression", lvl: 3 },
-  { p: "ETRE DANS LA LUNE", h: "😂 Humour", lvl: 3 },
-  { p: "FAIRE LA GRASSE MATINEE", h: "😂 Humour", lvl: 3 },
+  { p: "ETRE DANS LA LUNE", h: "💬 Expression", lvl: 3 },
+  { p: "FAIRE LA GRASSE MATINEE", h: "💬 Expression", lvl: 3 },
   { p: "PRENDRE SES JAMBES A SON COU", h: "💬 Expression", lvl: 3 },
   { p: "AVOIR LA CHAIR DE POULE", h: "💬 Expression", lvl: 3 },
   { p: "METTRE LA PUCE A L OREILLE", h: "💬 Expression", lvl: 3 },
@@ -431,6 +431,7 @@ io.on('connection', (socket)=>{
       phraseB:secondPh.p, hintB:secondPh.h, revealedB:[], usedLetters:[], activePlayerId:null, pots:{}, streak:0,
       spin:null, wheelVisible:false, lastLetter:null, pendingLetterMode:null, currentGain:0, status:'',
       introAt:null, readyAt:null, buzzRevealAt:null, buzzRevealMs:5000, wheelRevealAt:null, wheelRevealMs:3000,
+      retryAt:null, retryMs:5000,
       finaleWinnerId:null, finaleWord:null, finaleRevealed:[], finaleAutoLetters:[], finalePlayerLetters:[],
       finaleAmount:0, finaleRemaining:15000, finaleRunning:false, finaleAnswering:false,
       _buzzTimer:null, _finaleTimer:null
@@ -530,9 +531,11 @@ io.on('connection', (socket)=>{
     } else {
       g.eliminated.push(playerId); g.buzzedBy = null;
       g.status = 'Mauvaise réponse pour ' + (p?p.name:'?') + '. Reprise dans 5s...';
+      g.retryAt = Date.now(); g.retryMs = 5000;
       broadcast(code);
       setTimeout(()=>{
         const gg = games[code]; if(!gg) return;
+        gg.retryAt = null;
         if(gg.eliminated.length >= gg.players.length){
           const pool = gg.players;
           const winner = pool[Math.floor(Math.random()*pool.length)];
