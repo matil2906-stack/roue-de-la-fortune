@@ -40,7 +40,7 @@ const PHRASES = [
   { p: "PHOTO DE CLASSE", h: "👨‍👩‍👧‍👦 Famille", lvl: 1 },
   { p: "COURSE DE VELO", h: "⚽ Sport", lvl: 1 },
   { p: "CADEAU DE NOEL", h: "🎉 Fête", lvl: 1 },
-  { p: "BALADE A VELO", h: "⚽ Sport", lvl: 1 },
+  { p: "BALADE A VELO", h: "💬 Expression", lvl: 1 },
   { p: "TOUR DE MANEGE", h: "🎉 Fête", lvl: 1 },
   { p: "COUCHER DE SOLEIL", h: "🌳 Nature", lvl: 1 },
   { p: "COURS DE DANSE", h: "😂 Humour", lvl: 1 },
