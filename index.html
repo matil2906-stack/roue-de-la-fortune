@@ -237,11 +237,46 @@ setInterval(()=>{
   if(joinCode){
     goTo('screen-player-code');
     document.getElementById('playerCodeIn').value = joinCode.toUpperCase();
+    return;
   } else if(tvCode){
     goTo('screen-tv-code');
     document.getElementById('tvCodeIn').value = tvCode.toUpperCase();
+    return;
   }
+  tryAutoRejoin();
 })();
+
+function tryAutoRejoin(){
+  let session = null;
+  try{ session = JSON.parse(localStorage.getItem('rdlf_session')||'null'); }catch(e){}
+  if(!session) return;
+  if(session.role==='player'){
+    socket.emit('player:rejoin', {code:session.code, playerId:session.playerId}, (res)=>{
+      if(res && res.ok){
+        myRole='player'; myCode=session.code; myPlayerId=session.playerId;
+        goTo('screen-player');
+      } else {
+        localStorage.removeItem('rdlf_session');
+      }
+    });
+  } else if(session.role==='host'){
+    socket.emit('host:rejoin', {code:session.code}, (res)=>{
+      if(res && res.ok){
+        myRole='host'; myCode=session.code;
+        goTo('screen-host');
+      } else {
+        localStorage.removeItem('rdlf_session');
+      }
+    });
+  }
+}
+socket.on('connect', ()=>{
+  if(myRole==='player' && myCode && myPlayerId){
+    socket.emit('player:rejoin', {code:myCode, playerId:myPlayerId});
+  } else if(myRole==='host' && myCode){
+    socket.emit('host:rejoin', {code:myCode});
+  }
+});
 
 function goTo(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 document.querySelectorAll('[data-back]').forEach(a=> a.onclick = ()=> goTo(a.dataset.back));
@@ -254,6 +289,7 @@ document.getElementById('btnHost').onclick = ()=>{
   socket.emit('host:create', (res)=>{
     if(!res || !res.ok) return;
     myRole='host'; myCode=res.code;
+    localStorage.setItem('rdlf_session', JSON.stringify({role:'host', code:myCode}));
     goTo('screen-host');
   });
 };
@@ -273,6 +309,7 @@ document.getElementById('playerCodeGo').onclick = ()=>{
   socket.emit('player:join', {code:c, name:n}, (res)=>{
     if(!res || !res.ok){ document.getElementById('playerCodeErr').textContent = (res&&res.error)||"Erreur"; return; }
     myRole='player'; myPlayerId=res.playerId; myCode=c;
+    localStorage.setItem('rdlf_session', JSON.stringify({role:'player', code:myCode, playerId:myPlayerId}));
     goTo('screen-player');
   });
 };
