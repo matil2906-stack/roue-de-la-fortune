@@ -456,6 +456,26 @@ io.on('connection', (socket)=>{
     broadcast(code);
   });
 
+  socket.on('player:rejoin', ({code, playerId}, cb)=>{
+    code = (code||'').toUpperCase().trim();
+    const g = games[code];
+    if(!g || !g.players.find(p=>p.id===playerId)){ if(cb) cb({ok:false}); return; }
+    socket.join(room(code));
+    socket.data.code = code; socket.data.role='player'; socket.data.playerId = playerId;
+    if(cb) cb({ok:true});
+    socket.emit('state', pub(g));
+  });
+
+  socket.on('host:rejoin', ({code}, cb)=>{
+    code = (code||'').toUpperCase().trim();
+    const g = games[code];
+    if(!g){ if(cb) cb({ok:false}); return; }
+    socket.join(room(code));
+    socket.data.code = code; socket.data.role = 'host';
+    if(cb) cb({ok:true, tvCode:g.tvCode});
+    socket.emit('state', pub(g));
+  });
+
   socket.on('tv:join', ({tvCode}, cb)=>{
     tvCode = (tvCode||'').toUpperCase().trim();
     const entry = Object.values(games).find(g=> g.tvCode===tvCode);
@@ -589,6 +609,8 @@ io.on('connection', (socket)=>{
   socket.on('player:buyVowel', ()=>{
     const {code, playerId} = socket.data; const g = games[code]; if(!g || g.activePlayerId!==playerId || !g.wheelReady) return;
     if((g.pots[playerId]||0) < 250){ g.status="Pas assez d'argent pour acheter une voyelle."; broadcast(code); return; }
+    const availableVowels = VOWELS.filter(v=> !g.usedLetters.includes(v));
+    if(availableVowels.length === 0){ g.status="Il n'y a plus de voyelle disponible."; broadcast(code); return; }
     g.pots[playerId] -= 250; g.pendingLetterMode='buy'; g.status='Choisis la voyelle à acheter.';
     broadcast(code);
   });
