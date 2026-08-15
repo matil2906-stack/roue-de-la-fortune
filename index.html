@@ -135,12 +135,14 @@
       <div class="tv">
         <div class="label" style="margin-bottom:6px" id="hostFinaleLabel"></div>
         <div class="tiles" id="hostFinaleTiles"></div>
+        <div id="hostFinaleHint" style="font-size:20px;color:#fff;font-weight:700;margin:4px 0 8px"></div>
         <div style="font-size:30px;font-weight:700;color:var(--gold)" id="hostFinaleTimer"></div>
         <div class="status" id="hostFinaleStatus"></div>
       </div>
     </div>
     <div id="hostEndBox" class="panel" style="display:none;text-align:center">
       <div style="font-size:20px;font-weight:700" id="hostEndMsg"></div>
+      <button id="hostReplay" class="btn-gold" style="margin-top:14px;margin-bottom:0">Rejouer (nouvelle partie)</button>
     </div>
   </div>
 
@@ -169,6 +171,7 @@
         <div id="tvHint" style="font-size:20px;margin:4px 0 8px"></div>
       </div>
       <div id="tvFinaleTiles" class="tiles" style="display:none"></div>
+      <div id="tvFinaleHint" style="font-size:20px;color:#fff;font-weight:700;margin:4px 0 8px"></div>
       <div id="tvFinaleTimer" style="display:none;font-size:30px;font-weight:700;color:var(--gold)"></div>
       <div class="status" id="tvStatus"></div>
     </div>
@@ -201,11 +204,11 @@ setInterval(()=>{
   if(!state) return;
   if(myRole==='host'){
     if(state.phase==='buzz' && !state.buzzReady){
-      driveLocalCountdown('hostRing', state.buzzRevealAt, state.buzzRevealMs||5000, 'hostBuzz');
-    } else if(state.phase==='buzz' && state.retryAt){
-      driveLocalCountdown('hostRing', state.retryAt, state.retryMs||5000, 'hostRetry');
+      renderCountdownRing('hostRing', state.buzzRevealRemaining, state.buzzRevealMs||5000, 'hostBuzz');
+    } else if(state.phase==='buzz' && state.retryRemaining>0){
+      renderCountdownRing('hostRing', state.retryRemaining, state.retryMs||5000, 'hostRetry');
     } else if(state.phase==='wheel' && !state.wheelReady){
-      driveLocalCountdown('hostRing', state.wheelRevealAt, state.wheelRevealMs||3000, 'hostWheelReady');
+      renderCountdownRing('hostRing', state.wheelRevealRemaining, state.wheelRevealMs||3000, 'hostWheelReady');
     } else {
       const el=document.getElementById('hostRing'); if(el) el.innerHTML='';
     }
@@ -215,11 +218,11 @@ setInterval(()=>{
   }
   if(myRole==='tv'){
     if(state.phase==='buzz' && !state.buzzReady){
-      driveLocalCountdown('tvRing', state.buzzRevealAt, state.buzzRevealMs||5000, 'tvBuzz');
-    } else if(state.phase==='buzz' && state.retryAt){
-      driveLocalCountdown('tvRing', state.retryAt, state.retryMs||5000, 'tvRetry');
+      renderCountdownRing('tvRing', state.buzzRevealRemaining, state.buzzRevealMs||5000, 'tvBuzz');
+    } else if(state.phase==='buzz' && state.retryRemaining>0){
+      renderCountdownRing('tvRing', state.retryRemaining, state.retryMs||5000, 'tvRetry');
     } else if(state.phase==='wheel' && !state.wheelReady){
-      driveLocalCountdown('tvRing', state.wheelRevealAt, state.wheelRevealMs||3000, 'tvWheelReady');
+      renderCountdownRing('tvRing', state.wheelRevealRemaining, state.wheelRevealMs||3000, 'tvWheelReady');
     } else {
       const el=document.getElementById('tvRing'); if(el) el.innerHTML='';
     }
@@ -279,6 +282,12 @@ socket.on('connect', ()=>{
 });
 
 function goTo(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function goHome(){
+  localStorage.removeItem('rdlf_session');
+  myRole = null; myCode = null; myPlayerId = null;
+  goTo('screen-home');
+}
+document.getElementById('hostReplay').onclick = goHome;
 document.querySelectorAll('[data-back]').forEach(a=> a.onclick = ()=> goTo(a.dataset.back));
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -478,6 +487,7 @@ function renderHost(s){
     const w = s.players.find(p=>p.id===s.finaleWinnerId);
     document.getElementById('hostFinaleLabel').textContent = (w?w.name:'?') + ' — roue finale';
     buildTilesInto(document.getElementById('hostFinaleTiles'), s.finaleWord, s.finaleRevealed);
+    document.getElementById('hostFinaleHint').textContent = s.finaleHint ? ('Indice : ' + s.finaleHint) : '';
     document.getElementById('hostFinaleStatus').textContent = s.status;
     return;
   }
@@ -687,7 +697,12 @@ function renderPlayer(s){
     document.getElementById('finaleBuzz').onclick = ()=> socket.emit('player:finaleBuzz');
     return;
   }
-  if(s.phase==='ended'){ card.innerHTML = `<div style="font-size:16px;font-weight:600">${s.status}</div>`; return; }
+  if(s.phase==='ended'){
+    card.innerHTML = `<div style="font-size:16px;font-weight:600">${s.status}</div>
+      <button id="playerLeave" class="btn-outline" style="margin-top:14px">Quitter la partie</button>`;
+    document.getElementById('playerLeave').onclick = goHome;
+    return;
+  }
 }
 
 /* ================= ÉCRAN D'AFFICHAGE ================= */
@@ -771,6 +786,7 @@ function renderTv(s){
     document.getElementById('tvWheelPanel').style.display='none';
     document.getElementById('tvFinaleTiles').style.display='flex';
     buildTilesInto(document.getElementById('tvFinaleTiles'), s.finaleWord, s.finaleRevealed);
+    document.getElementById('tvFinaleHint').textContent = s.finaleHint ? ('Indice : ' + s.finaleHint) : '';
     if(s.phase==='finale'){
       document.getElementById('tvFinaleTimer').style.display='block';
     }
