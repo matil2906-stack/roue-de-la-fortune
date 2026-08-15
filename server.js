@@ -185,7 +185,13 @@ const PHRASES = [
   { p: "BERGER ALLEMAND", h: "🐶 Animal", lvl: 3 },
   { p: "GOLDEN RETRIEVER", h: "🐶 Animal", lvl: 3 }
 ];
-const WORDS = ["ORDINATEUR","ANNIVERSAIRE","PARAPLUIE","BIBLIOTHEQUE","TELEPHONE","MONTAGNE","AEROPORT","RESTAURANT","FRIGIDAIRE","ASPIRATEUR","CALENDRIER","GYMNASTIQUE","PATISSERIE","DECOUVERTE","CHOCOLATINE"];
+const WORDS = [
+  {w:"ORDINATEUR", h:"💻 Technologie"}, {w:"ANNIVERSAIRE", h:"🎉 Fête"}, {w:"PARAPLUIE", h:"🏠 Objet"},
+  {w:"BIBLIOTHEQUE", h:"🏠 Objet"}, {w:"TELEPHONE", h:"💻 Technologie"}, {w:"MONTAGNE", h:"🌳 Nature"},
+  {w:"AEROPORT", h:"🏠 Objet"}, {w:"RESTAURANT", h:"🍕 Plat"}, {w:"FRIGIDAIRE", h:"🏠 Objet"},
+  {w:"ASPIRATEUR", h:"🏠 Objet"}, {w:"CALENDRIER", h:"🏠 Objet"}, {w:"GYMNASTIQUE", h:"⚽ Sport"},
+  {w:"PATISSERIE", h:"🍰 Dessert"}, {w:"DECOUVERTE", h:"🧠 Culture générale"}, {w:"CHOCOLATINE", h:"🍰 Dessert"}
+];
 const FINALE_AMOUNTS = [5000,8000,10000,15000,20000];
 
 let usedGlobal = { 1: new Set(), 2: new Set(), 3: new Set() };
@@ -203,10 +209,12 @@ function pickTwoPhrases(lvl){
     pool = PHRASES.filter(x=> x.lvl===lvl && x.p!==first.p);
   }
   const i2 = Math.floor(Math.random()*pool.length);
-  const second = pool.splice(i2,1)[0];
+  let second = pool.splice(i2,1)[0];
   usedGlobal[lvl].add(first.p);
   usedGlobal[lvl].add(second.p);
-  return [first, second];
+  let short = first, long = second;
+  if(short.p.length > long.p.length){ const tmp = short; short = long; long = tmp; }
+  return [short, long];
 }
 function randCode(len, chars){ let c=''; for(let i=0;i<len;i++) c+=chars[Math.floor(Math.random()*chars.length)]; return c; }
 function normalize(str){
@@ -236,7 +244,7 @@ const games = {};
 const room = (code) => `room_${code}`;
 
 function pub(g){
-  const { _buzzTimer, _finaleTimer, ...rest } = g;
+  const { _buzzTimer, _finaleTimer, _buzzRevealTimer, _wheelRevealTimer, _retryTimer, ...rest } = g;
   return rest;
 }
 function broadcast(code){
@@ -246,7 +254,11 @@ function broadcast(code){
 function clearTimers(g){
   if(g._buzzTimer) clearInterval(g._buzzTimer);
   if(g._finaleTimer) clearInterval(g._finaleTimer);
+  if(g._buzzRevealTimer) clearInterval(g._buzzRevealTimer);
+  if(g._wheelRevealTimer) clearInterval(g._wheelRevealTimer);
+  if(g._retryTimer) clearInterval(g._retryTimer);
   g._buzzTimer = null; g._finaleTimer = null;
+  g._buzzRevealTimer = null; g._wheelRevealTimer = null; g._retryTimer = null;
 }
 
 function beginBuzzPhase(code){
@@ -257,16 +269,20 @@ function beginBuzzPhase(code){
   g.revealedCount = 0;
   g.runningA = false; g.eliminated=[]; g.buzzedBy=null;
   g.buzzReady = false;
-  g.buzzRevealAt = Date.now();
   g.buzzRevealMs = 5000;
+  g.buzzRevealRemaining = 5000;
   g.status = 'La phrase apparaît...';
   broadcast(code);
-  setTimeout(()=>{
-    const g0 = games[code]; if(!g0 || g0.phase!=='buzz') return;
-    g0.buzzReady = true; g0.runningA = true;
-    g0.status = 'Les lettres apparaissent...';
+  g._buzzRevealTimer = setInterval(()=>{
+    const gg0 = games[code]; if(!gg0 || gg0.phase!=='buzz'){ return; }
+    gg0.buzzRevealRemaining -= 200;
+    if(gg0.buzzRevealRemaining > 0){ broadcast(code); return; }
+    clearInterval(gg0._buzzRevealTimer); gg0._buzzRevealTimer = null;
+    gg0.buzzRevealRemaining = 0;
+    gg0.buzzReady = true; gg0.runningA = true;
+    gg0.status = 'Les lettres apparaissent...';
     broadcast(code);
-    g0._buzzTimer = setInterval(()=>{
+    gg0._buzzTimer = setInterval(()=>{
       const gg = games[code]; if(!gg || gg.phase!=='buzz' || !gg.runningA) return;
       if(gg.revealedCount < gg.revealOrder.length){ gg.revealedCount++; broadcast(code); }
       else {
@@ -280,7 +296,7 @@ function beginBuzzPhase(code){
         setTimeout(()=> beginWheelPhase(code, winner.id), 1600);
       }
     }, 1000);
-  }, 5000);
+  }, 200);
 }
 
 function beginWheelPhase(code, startPlayerId){
@@ -290,17 +306,21 @@ function beginWheelPhase(code, startPlayerId){
   g.pots={}; g.players.forEach(p=> g.pots[p.id]=0);
   g.streak=0; g.spin=null; g.pendingLetterMode=null; g.wheelVisible=false; g.lastLetter=null;
   g.wheelReady = false;
-  g.wheelRevealAt = Date.now();
   g.wheelRevealMs = 3000;
+  g.wheelRevealRemaining = 3000;
   g.status = 'La phrase apparaît...';
   broadcast(code);
-  setTimeout(()=>{
-    const g0 = games[code]; if(!g0 || g0.phase!=='wheel') return;
-    g0.wheelReady = true;
-    const p = g0.players.find(pl=>pl.id===startPlayerId);
-    g0.status = (p?p.name:'?') + ' a la main. Choisis la vitesse de la roue.';
+  g._wheelRevealTimer = setInterval(()=>{
+    const gg0 = games[code]; if(!gg0 || gg0.phase!=='wheel'){ return; }
+    gg0.wheelRevealRemaining -= 200;
+    if(gg0.wheelRevealRemaining > 0){ broadcast(code); return; }
+    clearInterval(gg0._wheelRevealTimer); gg0._wheelRevealTimer = null;
+    gg0.wheelRevealRemaining = 0;
+    gg0.wheelReady = true;
+    const p = gg0.players.find(pl=>pl.id===startPlayerId);
+    gg0.status = (p?p.name:'?') + ' a la main. Choisis la vitesse de la roue.';
     broadcast(code);
-  }, 3000);
+  }, 200);
 }
 
 function endRound(code, winnerId){
@@ -329,8 +349,10 @@ function startNextRoundOrFinale(code){
 
 function startFinale(code){
   const g = games[code]; if(!g) return;
-  const word = WORDS[Math.floor(Math.random()*WORDS.length)];
+  const entry = WORDS[Math.floor(Math.random()*WORDS.length)];
+  const word = entry.w;
   g.finaleWord = word;
+  g.finaleHint = entry.h;
   g.finaleAmount = FINALE_AMOUNTS[Math.floor(Math.random()*FINALE_AMOUNTS.length)];
   const letters = [...new Set([...word])];
   const cons = letters.filter(l=>!VOWELS.includes(l));
@@ -358,11 +380,12 @@ function startFinaleTimer(code){
     gg.finaleRemaining -= 200;
     if(gg.finaleRemaining <= 0){
       gg.finaleRemaining = 0; gg.finaleRunning = false;
+      gg.finaleRevealed = gg.finaleWord.split('').map((_,k)=>k);
       const w = gg.players.find(p=>p.id===gg.finaleWinnerId);
-      gg.status = "Temps écoulé ! " + (w?w.name:'?') + ' repart avec son total des 3 manches.';
+      gg.status = "Temps écoulé ! Le mot était " + gg.finaleWord + ". " + (w?w.name:'?') + ' repart avec son total des 3 manches.';
       broadcast(code);
       clearTimers(gg);
-      setTimeout(()=> endGame(code), 2500);
+      setTimeout(()=> endGame(code), 3500);
     } else broadcast(code);
   }, 200);
 }
@@ -430,11 +453,11 @@ io.on('connection', (socket)=>{
       phraseA:firstPh.p, hintA:firstPh.h, revealOrder:[], revealedCount:0, runningA:true, eliminated:[], buzzedBy:null,
       phraseB:secondPh.p, hintB:secondPh.h, revealedB:[], usedLetters:[], activePlayerId:null, pots:{}, streak:0,
       spin:null, wheelVisible:false, lastLetter:null, pendingLetterMode:null, currentGain:0, status:'',
-      introAt:null, readyAt:null, buzzRevealAt:null, buzzRevealMs:5000, wheelRevealAt:null, wheelRevealMs:3000,
-      retryAt:null, retryMs:5000,
-      finaleWinnerId:null, finaleWord:null, finaleRevealed:[], finaleAutoLetters:[], finalePlayerLetters:[],
+      introAt:null, readyAt:null, buzzRevealMs:5000, buzzRevealRemaining:0, wheelRevealMs:3000, wheelRevealRemaining:0,
+      retryMs:5000, retryRemaining:0,
+      finaleWinnerId:null, finaleWord:null, finaleHint:null, finaleRevealed:[], finaleAutoLetters:[], finalePlayerLetters:[],
       finaleAmount:0, finaleRemaining:15000, finaleRunning:false, finaleAnswering:false,
-      _buzzTimer:null, _finaleTimer:null
+      _buzzTimer:null, _finaleTimer:null, _buzzRevealTimer:null, _wheelRevealTimer:null, _retryTimer:null
     };
     lastGameCode = code;
     socket.join(room(code));
@@ -551,11 +574,14 @@ io.on('connection', (socket)=>{
     } else {
       g.eliminated.push(playerId); g.buzzedBy = null;
       g.status = 'Mauvaise réponse pour ' + (p?p.name:'?') + '. Reprise dans 5s...';
-      g.retryAt = Date.now(); g.retryMs = 5000;
+      g.retryMs = 5000; g.retryRemaining = 5000;
       broadcast(code);
-      setTimeout(()=>{
-        const gg = games[code]; if(!gg) return;
-        gg.retryAt = null;
+      g._retryTimer = setInterval(()=>{
+        const gg = games[code]; if(!gg){ return; }
+        gg.retryRemaining -= 200;
+        if(gg.retryRemaining > 0){ broadcast(code); return; }
+        clearInterval(gg._retryTimer); gg._retryTimer = null;
+        gg.retryRemaining = 0;
         if(gg.eliminated.length >= gg.players.length){
           const pool = gg.players;
           const winner = pool[Math.floor(Math.random()*pool.length)];
@@ -567,7 +593,7 @@ io.on('connection', (socket)=>{
         gg.runningA = true;
         gg.status = "Les lettres continuent d'apparaître...";
         broadcast(code);
-      }, 5000);
+      }, 200);
     }
   });
 
