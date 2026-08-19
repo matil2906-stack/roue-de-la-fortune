@@ -29,7 +29,12 @@ const SEGS = [
 ];
 function segsForRound(round){
   const mult = round===3 ? 2 : (round===2 ? 1.5 : 1);
-  return SEGS.map(s=> typeof s.v==='number' ? { ...s, v: Math.round(s.v*mult/50)*50 } : s);
+  let segs = SEGS.map(s=> typeof s.v==='number' ? { ...s, v: Math.round(s.v*mult/50)*50 } : s);
+  if(round===3){
+    const idx = segs.findIndex(s=> typeof s.v==='number');
+    segs[idx] = { v:'ECHANGER', c:'#B98A2E' };
+  }
+  return segs;
 }
 const PHRASES = [
   { p: "LUNE DE MIEL", h: "💬 Expression", lvl: 1 },
@@ -183,7 +188,21 @@ const PHRASES = [
   { p: "LA FOSSE DES MARIANNES", h: "🌳 Nature", lvl: 3 },
   { p: "LE SAHARA OCCIDENTAL EN AFRIQUE", h: "🌍 Pays", lvl: 3 },
   { p: "BERGER ALLEMAND", h: "🐶 Animal", lvl: 3 },
-  { p: "GOLDEN RETRIEVER", h: "🐶 Animal", lvl: 3 }
+  { p: "GOLDEN RETRIEVER", h: "🐶 Animal", lvl: 3 },
+  { p: "MARSUPILAMI", h: "🎬 Film", recent: true, lvl: 2 },
+  { p: "SCREAM 7", h: "🎬 Film", recent: true, lvl: 2 },
+  { p: "SEXY NANA AYA NAKAMURA", h: "🎵 Chanson", recent: true, lvl: 2 },
+  { p: "SOLEIL GIMS", h: "🎵 Chanson", recent: true, lvl: 2 },
+  { p: "JUST THE WAY YOU ARE DAVID GUETTA", h: "🎵 Chanson", recent: true, lvl: 2 },
+  { p: "SUPER MARIO GALAXY LE FILM", h: "🎬 Film", recent: true, lvl: 3 },
+  { p: "TOY STORY 5", h: "🎬 Film", recent: true, lvl: 3 },
+  { p: "I JUST MIGHT BRUNO MARS", h: "🎵 Chanson", recent: true, lvl: 3 },
+  { p: "MIDNIGHT SUN ZARA LARSSON", h: "🎵 Chanson", recent: true, lvl: 3 },
+  { p: "THE DEVIL WEARS PRADA 2", h: "🎬 Film", recent: true, lvl: 3 },
+  { p: "VIDEO QUI BUZZ SUR LES RESEAUX", h: "📱 Ref Squeezie", recent: true, lvl: 2 },
+  { p: "DEFI VIRAL ENTRE AMIS", h: "📱 Ref McFly et Carlito", recent: true, lvl: 2 },
+  { p: "CHALLENGE DE DANSE EN LIGNE", h: "📱 Ref TikTok", recent: true, lvl: 3 },
+  { p: "VIDEO DE REACTION EN DIRECT", h: "📱 Ref Twitch", recent: true, lvl: 3 }
 ];
 const WORDS = [
   {w:"ORDINATEUR", h:"💻 Technologie"}, {w:"ANNIVERSAIRE", h:"🎉 Fête"}, {w:"PARAPLUIE", h:"🏠 Objet"},
@@ -195,18 +214,27 @@ const WORDS = [
 const FINALE_AMOUNTS = [5000,8000,10000,15000,20000];
 
 let usedGlobal = { 1: new Set(), 2: new Set(), 3: new Set() };
-function pickTwoPhrases(lvl){
-  let pool = PHRASES.filter(x=> x.lvl===lvl && !usedGlobal[lvl].has(x.p));
+function poolForMode(lvl, mode){
+  const base = PHRASES.filter(x=> x.lvl===lvl);
+  if(mode==='normal') return base.filter(x=> !x.recent);
+  if(mode==='recent') return base.filter(x=> x.recent);
+  return base;
+}
+function pickTwoPhrases(lvl, mode){
+  mode = mode || 'mixed';
+  let full = poolForMode(lvl, mode);
+  if(full.length < 2) full = PHRASES.filter(x=> x.lvl===lvl);
+  let pool = full.filter(x=> !usedGlobal[lvl].has(x.p));
   if(pool.length < 2){
     usedGlobal[lvl] = new Set();
-    pool = PHRASES.filter(x=> x.lvl===lvl);
+    pool = [...full];
   }
   pool = [...pool];
   const i1 = Math.floor(Math.random()*pool.length);
   const first = pool.splice(i1,1)[0];
   if(pool.length === 0){
     usedGlobal[lvl] = new Set([first.p]);
-    pool = PHRASES.filter(x=> x.lvl===lvl && x.p!==first.p);
+    pool = full.filter(x=> x.p!==first.p);
   }
   const i2 = Math.floor(Math.random()*pool.length);
   let second = pool.splice(i2,1)[0];
@@ -284,7 +312,7 @@ function beginBuzzPhase(code){
     broadcast(code);
     gg0._buzzTimer = setInterval(()=>{
       const gg = games[code]; if(!gg || gg.phase!=='buzz' || !gg.runningA) return;
-      if(gg.revealedCount < gg.revealOrder.length){ gg.revealedCount++; broadcast(code); }
+      if(gg.revealedCount < gg.revealOrder.length){ gg.revealedCount++; broadcast(code); checkBotBuzz(code); }
       else {
         gg.runningA = false;
         const pool = gg.players.filter(p=>!gg.eliminated.includes(p.id));
@@ -304,7 +332,7 @@ function beginWheelPhase(code, startPlayerId){
   clearTimers(g);
   g.phase='wheel'; g.revealedB=[]; g.usedLetters=[]; g.activePlayerId=startPlayerId;
   g.pots={}; g.players.forEach(p=> g.pots[p.id]=0);
-  g.streak=0; g.spin=null; g.pendingLetterMode=null; g.wheelVisible=false; g.lastLetter=null;
+  g.streak=0; g.spin=null; g.pendingLetterMode=null; g.pendingSwap=false; g.wheelVisible=false; g.lastLetter=null;
   g.wheelReady = false;
   g.wheelRevealMs = 3000;
   g.wheelRevealRemaining = 3000;
@@ -320,7 +348,218 @@ function beginWheelPhase(code, startPlayerId){
     const p = gg0.players.find(pl=>pl.id===startPlayerId);
     gg0.status = (p?p.name:'?') + ' a la main. Choisis la vitesse de la roue.';
     broadcast(code);
+    checkBotTurn(code);
   }, 200);
+}
+
+const COMMON_LETTERS = ['E','A','S','I','T','N','R','U','L','O','D','C'];
+
+function checkBotTurn(code){
+  const g = games[code]; if(!g) return;
+  const active = g.players.find(p=>p.id===g.activePlayerId);
+  if(!active || !active.isBot) return;
+  if(g.phase!=='wheel') return;
+  if(g.pendingSwap){
+    setTimeout(()=> botSwap(code, active.id), 1500);
+  } else if(g.wheelReady && !g.pendingLetterMode){
+    setTimeout(()=> botSpin(code, active.id), 1200 + Math.random()*1200);
+  } else if(g.pendingLetterMode){
+    setTimeout(()=> botPickLetter(code, active.id), 1400 + Math.random()*1300);
+  }
+}
+
+function botSpin(code, botId){
+  const g = games[code]; if(!g || g.activePlayerId!==botId || !g.wheelReady || g.pendingLetterMode || g.pendingSwap) return;
+  const speeds = [{t:3,d:2.8},{t:5,d:3.4},{t:8,d:4}];
+  const sp = speeds[Math.floor(Math.random()*speeds.length)];
+  g.wheelVisible = true; g.status = 'La roue arrive...';
+  broadcast(code);
+  setTimeout(()=>{
+    const g1 = games[code]; if(!g1) return;
+    const base = g1.spin ? g1.spin.rotation : 0;
+    g1.spin = {rotation: base + 360*sp.t + Math.random()*360, duration: sp.d};
+    g1.status = 'La roue tourne...';
+    broadcast(code);
+    setTimeout(()=>{
+      const g2 = games[code]; if(!g2) return;
+      const landed = landedSegmentForRound(g2.spin.rotation, g2.round);
+      g2.status = (typeof landed.v==='number') ? ('Roue : '+landed.v+' €') : landed.v;
+      broadcast(code);
+      setTimeout(()=>{
+        const g3 = games[code]; if(!g3) return;
+        g3.wheelVisible = false;
+        if(landed.v==='BANQUEROUTE'){
+          g3.pots[botId]=0;
+          const p = g3.players.find(pl=>pl.id===botId);
+          g3.status = 'Banqueroute ! ' + (p?p.name:'?') + ' perd sa cagnotte. Main au suivant.';
+          broadcast(code); setTimeout(()=>passHand(code),1500);
+        } else if(landed.v==='PASSE'){
+          g3.status = 'Passe ! Main au joueur suivant.';
+          broadcast(code); setTimeout(()=>passHand(code),1500);
+        } else if(landed.v==='ECHANGER'){
+          g3.status = 'Case Échanger ! Le bot tente une lettre.'; g3.pendingLetterMode='echange';
+          broadcast(code); checkBotTurn(code);
+        } else {
+          g3.currentGain = landed.v; g3.status = 'Roue : '+landed.v+' € !'; g3.pendingLetterMode='spin';
+          broadcast(code); checkBotTurn(code);
+        }
+      }, 2000);
+    }, sp.d*1000+150);
+  }, 2000);
+}
+
+function botPickLetter(code, botId){
+  const g = games[code]; if(!g || g.activePlayerId!==botId || !g.pendingLetterMode) return;
+  const mode = g.pendingLetterMode;
+  let candidates;
+  if(mode==='buy'){
+    candidates = VOWELS.filter(v=>!g.usedLetters.includes(v));
+    if(candidates.length===0){ g.pendingLetterMode='spin'; broadcast(code); return botPickLetter(code, botId); }
+  } else {
+    candidates = COMMON_LETTERS.filter(l=>!g.usedLetters.includes(l));
+    if(candidates.length===0) candidates = ALPHABET.filter(l=>!g.usedLetters.includes(l));
+  }
+  if(candidates.length===0) return;
+  const letter = candidates[Math.floor(Math.random()*candidates.length)];
+  g.usedLetters.push(letter); g.lastLetter = letter;
+  g.pendingLetterMode = null; g.status='Révélation...';
+  broadcast(code);
+  const matches = [];
+  [...g.phraseB].forEach((c,i)=>{ if(c===letter) matches.push(i); });
+  revealSequence(code, matches, 0, mode, botId);
+}
+
+function botSwap(code, botId){
+  const g = games[code]; if(!g || g.activePlayerId!==botId || !g.pendingSwap) return;
+  const others = g.players.filter(p=>p.id!==botId);
+  if(others.length===0) return;
+  const target = others[Math.floor(Math.random()*others.length)];
+  const tmp = g.pots[botId]||0;
+  g.pots[botId] = g.pots[target.id]||0;
+  g.pots[target.id] = tmp;
+  g.pendingSwap = false;
+  const p = g.players.find(pl=>pl.id===botId);
+  g.status = (p?p.name:'?') + ' a échangé sa cagnotte avec ' + target.name + ' !';
+  broadcast(code);
+  setTimeout(()=>{
+    const gg = games[code]; if(!gg) return;
+    gg.status = (p?p.name:'?') + ' a la main. Choisis la vitesse de la roue.';
+    broadcast(code); checkBotTurn(code);
+  }, 1800);
+}
+
+function checkBotBuzz(code){
+  const g = games[code]; if(!g || g.phase!=='buzz' || !g.runningA || g.buzzedBy) return;
+  const bots = g.players.filter(p=>p.isBot && !g.eliminated.includes(p.id));
+  for(const b of bots){
+    if(g.buzzedBy) return;
+    const progress = g.revealedCount / Math.max(1,g.revealOrder.length);
+    const chance = 0.02 + progress*0.06;
+    if(Math.random() < chance){ botBuzz(code, b.id); return; }
+  }
+}
+function botBuzz(code, botId){
+  const g = games[code]; if(!g || g.buzzedBy || !g.runningA) return;
+  g.buzzedBy = botId; g.runningA = false;
+  const p = g.players.find(pl=>pl.id===botId);
+  g.status = (p?p.name:'?') + ' a pris le buzzer !';
+  broadcast(code);
+  setTimeout(()=>{
+    const gg = games[code]; if(!gg || gg.buzzedBy!==botId) return;
+    const correct = Math.random() < 0.35;
+    resolveBuzzAnswer(code, botId, correct ? gg.phraseA : 'REPONSE INCORRECTE DU BOT');
+  }, 1200 + Math.random()*1000);
+}
+
+function resolveBuzzAnswer(code, playerId, answer){
+  const g = games[code]; if(!g || g.buzzedBy!==playerId) return;
+  const p = g.players.find(pl=>pl.id===playerId);
+  if(normalize(answer) === normalize(g.phraseA)){
+    g.revealedCount = g.revealOrder.length;
+    g.status = (p?p.name:'?') + ' PREND LA MAIN !';
+    broadcast(code);
+    clearTimers(g);
+    setTimeout(()=> beginWheelPhase(code, playerId), 1400);
+  } else {
+    g.eliminated.push(playerId); g.buzzedBy = null;
+    g.status = 'Mauvaise réponse pour ' + (p?p.name:'?') + '. Reprise dans 5s...';
+    g.retryMs = 5000; g.retryRemaining = 5000;
+    broadcast(code);
+    g._retryTimer = setInterval(()=>{
+      const gg = games[code]; if(!gg){ return; }
+      gg.retryRemaining -= 200;
+      if(gg.retryRemaining > 0){ broadcast(code); return; }
+      clearInterval(gg._retryTimer); gg._retryTimer = null;
+      gg.retryRemaining = 0;
+      if(gg.eliminated.length >= gg.players.length){
+        const pool = gg.players;
+        const winner = pool[Math.floor(Math.random()*pool.length)];
+        gg.status = "Personne n'a trouvé. " + winner.name + ' prend la main au hasard !';
+        broadcast(code);
+        setTimeout(()=> beginWheelPhase(code, winner.id), 1600);
+        return;
+      }
+      gg.runningA = true;
+      gg.status = "Les lettres continuent d'apparaître...";
+      broadcast(code);
+    }, 200);
+  }
+}
+
+function botFinalePick(code, botId){
+  const pickOne = ()=>{
+    const gg = games[code]; if(!gg || gg.phase!=='finale-pick' || gg.finaleWinnerId!==botId) return;
+    const chosen = gg.finalePlayerLetters || [];
+    const consChosen = chosen.filter(l=>!VOWELS.includes(l)).length;
+    const vowChosen = chosen.filter(l=>VOWELS.includes(l)).length;
+    let pool;
+    if(vowChosen<1 && (consChosen>=3 || Math.random()<0.25)) pool = VOWELS.filter(l=>!chosen.includes(l) && !gg.finaleAutoLetters.includes(l));
+    else pool = ALPHABET.filter(l=>!VOWELS.includes(l) && !chosen.includes(l) && !gg.finaleAutoLetters.includes(l));
+    if(pool.length===0) return;
+    const letter = pool[Math.floor(Math.random()*pool.length)];
+    gg.finalePlayerLetters = gg.finalePlayerLetters || [];
+    gg.finalePlayerLetters.push(letter);
+    [...gg.finaleWord].forEach((c,i)=>{ if(c===letter && !gg.finaleRevealed.includes(i)) gg.finaleRevealed.push(i); });
+    const cc = gg.finalePlayerLetters.filter(l=>!VOWELS.includes(l)).length;
+    const vc = gg.finalePlayerLetters.filter(l=>VOWELS.includes(l)).length;
+    if(cc>=3 && vc>=1){
+      gg.phase='finale'; gg.finaleRunning=true; gg.status='Le temps tourne...';
+      broadcast(code);
+      startFinaleTimer(code);
+      scheduleBotFinaleAnswer(code, botId);
+    } else {
+      broadcast(code);
+      setTimeout(pickOne, 900);
+    }
+  };
+  setTimeout(pickOne, 1200);
+}
+function scheduleBotFinaleAnswer(code, botId){
+  const delay = 4000 + Math.random()*7000;
+  setTimeout(()=>{
+    const g = games[code]; if(!g || g.phase!=='finale' || !g.finaleRunning || g.finaleWinnerId!==botId) return;
+    const correct = Math.random() < 0.4;
+    g.finaleRunning = false; g.finaleAnswering = true;
+    const p = g.players.find(pl=>pl.id===botId);
+    g.status = (p?p.name:'?') + ' buzze !';
+    broadcast(code);
+    setTimeout(()=>{
+      const gg = games[code]; if(!gg || gg.finaleWinnerId!==botId) return;
+      if(correct){
+        gg.finaleRevealed = gg.finaleWord.split('').map((_,k)=>k);
+        gg.status = (p?p.name:'?') + ' a trouvé ! Il/elle remporte ' + gg.finaleAmount + ' € !';
+        gg.finaleAnswering=false; gg.finaleWon=true;
+        clearTimers(gg);
+        broadcast(code);
+        setTimeout(()=> endGame(code), 2500);
+      } else {
+        gg.status = 'Mauvaise réponse, le temps reprend...';
+        gg.finaleAnswering=false; gg.finaleRunning=true;
+        broadcast(code);
+        scheduleBotFinaleAnswer(code, botId);
+      }
+    }, 1000);
+  }, delay);
 }
 
 function endRound(code, winnerId){
@@ -334,7 +573,7 @@ function startNextRoundOrFinale(code){
   const g = games[code]; if(!g) return;
   if(g.round < 3){
     g.round++;
-    const [firstPh, secondPh] = pickTwoPhrases(g.round);
+    const [firstPh, secondPh] = pickTwoPhrases(g.round, g.mode);
     g.phraseA = firstPh.p; g.hintA = firstPh.h; g.phraseB = secondPh.p; g.hintB = secondPh.h;
     g.phase='ready'; g.readyAt = Date.now();
     broadcast(code);
@@ -370,6 +609,8 @@ function startFinale(code){
   g.phase = 'finale-pick';
   g.status = "Choisis 3 consonnes et 1 voyelle.";
   broadcast(code);
+  const winner = g.players.find(p=>p.id===g.finaleWinnerId);
+  if(winner && winner.isBot) botFinalePick(code, winner.id);
 }
 
 function startFinaleTimer(code){
@@ -402,6 +643,18 @@ function endGame(code){
 function revealSequence(code, matches, k, mode, playerId){
   const g = games[code]; if(!g) return;
   if(k >= matches.length){
+    if(mode==='echange'){
+      if(matches.length>0){
+        g.pendingSwap = true;
+        g.status = 'Lettre trouvée ! Choisis avec qui échanger ta cagnotte.';
+        broadcast(code);
+      } else {
+        g.status = "Mauvaise lettre, pas d'échange possible. Main au joueur suivant.";
+        broadcast(code);
+        setTimeout(()=>passHand(code),1500);
+      }
+      return;
+    }
     if(mode==='spin' && matches.length>0){ g.pots[playerId] = (g.pots[playerId]||0) + g.currentGain*matches.length; }
     const doneCount = g.phraseB.split('').filter((c,i)=> c!==' ' && !g.revealedB.includes(i)).length;
     if(doneCount===0){
@@ -436,6 +689,7 @@ function passHand(code){
   const np = g.players.find(p=>p.id===next);
   g.status = (np?np.name:'?') + ' a la main. Choisis la vitesse de la roue.';
   broadcast(code);
+  checkBotTurn(code);
 }
 
 /* ================= SOCKET.IO ================= */
@@ -443,20 +697,21 @@ let lastGameCode = null;
 
 io.on('connection', (socket)=>{
 
-  socket.on('host:create', (cb)=>{
+  socket.on('host:create', ({mode}, cb)=>{
+    mode = ['normal','recent','mixed'].includes(mode) ? mode : 'mixed';
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code; do { code = randCode(6, chars); } while(games[code]);
     const tvCode = randCode(5, chars);
-    const [firstPh, secondPh] = pickTwoPhrases(1);
+    const [firstPh, secondPh] = pickTwoPhrases(1, mode);
     games[code] = {
-      code, tvCode, phase:'lobby', round:1, players:[], totals:{},
+      code, tvCode, mode, phase:'lobby', round:1, players:[], totals:{},
       phraseA:firstPh.p, hintA:firstPh.h, revealOrder:[], revealedCount:0, runningA:true, eliminated:[], buzzedBy:null,
       phraseB:secondPh.p, hintB:secondPh.h, revealedB:[], usedLetters:[], activePlayerId:null, pots:{}, streak:0,
-      spin:null, wheelVisible:false, lastLetter:null, pendingLetterMode:null, currentGain:0, status:'',
+      spin:null, wheelVisible:false, lastLetter:null, pendingLetterMode:null, pendingSwap:false, currentGain:0, status:'',
       introAt:null, readyAt:null, buzzRevealMs:5000, buzzRevealRemaining:0, wheelRevealMs:3000, wheelRevealRemaining:0,
       retryMs:5000, retryRemaining:0,
       finaleWinnerId:null, finaleWord:null, finaleHint:null, finaleRevealed:[], finaleAutoLetters:[], finalePlayerLetters:[],
-      finaleAmount:0, finaleRemaining:15000, finaleRunning:false, finaleAnswering:false,
+      finaleAmount:0, finaleRemaining:15000, finaleRunning:false, finaleAnswering:false, finaleWon:false,
       _buzzTimer:null, _finaleTimer:null, _buzzRevealTimer:null, _wheelRevealTimer:null, _retryTimer:null
     };
     lastGameCode = code;
@@ -521,6 +776,25 @@ io.on('connection', (socket)=>{
     const {code, playerId} = socket.data; const g = games[code]; if(!g) return;
     const p = g.players.find(pl=>pl.id===playerId);
     if(p){ p.ready = !p.ready; broadcast(code); }
+  });
+
+  socket.on('host:addBot', (cb)=>{
+    const {code} = socket.data; const g = games[code]; if(!g || g.phase!=='lobby'){ if(cb) cb({ok:false}); return; }
+    const botNames = ['Robot Léo','Robot Nina','Robot Max','Robot Zoé','Robot Théo','Robot Mia'];
+    const used = g.players.filter(p=>p.isBot).map(p=>p.name);
+    const name = botNames.find(n=>!used.includes(n)) || ('Robot ' + Math.floor(Math.random()*1000));
+    const botId = 'bot_' + Math.random().toString(36).slice(2,9);
+    g.players.push({id:botId, name, ready:true, isBot:true});
+    g.totals[botId] = 0;
+    if(cb) cb({ok:true});
+    broadcast(code);
+  });
+
+  socket.on('host:removeBot', ({playerId})=>{
+    const {code} = socket.data; const g = games[code]; if(!g || g.phase!=='lobby') return;
+    g.players = g.players.filter(p=> p.id!==playerId);
+    delete g.totals[playerId];
+    broadcast(code);
   });
 
   socket.on('host:launch', ()=>{
@@ -623,6 +897,9 @@ io.on('connection', (socket)=>{
           } else if(landed.v==='PASSE'){
             g3.status = 'Passe ! Main au joueur suivant.';
             broadcast(code); setTimeout(()=>passHand(code),1500);
+          } else if(landed.v==='ECHANGER'){
+            g3.status = 'Case Échanger ! Propose une lettre pour pouvoir échanger ta cagnotte.'; g3.pendingLetterMode='echange';
+            broadcast(code);
           } else {
             g3.currentGain = landed.v; g3.status = 'Roue : '+landed.v+' € ! Propose une lettre.'; g3.pendingLetterMode='spin';
             broadcast(code);
@@ -649,6 +926,24 @@ io.on('connection', (socket)=>{
     const matches = [];
     [...g.phraseB].forEach((c,i)=>{ if(c===letter) matches.push(i); });
     revealSequence(code, matches, 0, mode, playerId);
+  });
+
+  socket.on('player:swap', ({targetPlayerId})=>{
+    const {code, playerId} = socket.data; const g = games[code]; if(!g || g.activePlayerId!==playerId || !g.pendingSwap) return;
+    if(!g.players.find(p=>p.id===targetPlayerId) || targetPlayerId===playerId) return;
+    const tmp = g.pots[playerId]||0;
+    g.pots[playerId] = g.pots[targetPlayerId]||0;
+    g.pots[targetPlayerId] = tmp;
+    g.pendingSwap = false;
+    const p = g.players.find(pl=>pl.id===playerId);
+    const t = g.players.find(pl=>pl.id===targetPlayerId);
+    g.status = (p?p.name:'?') + ' a échangé sa cagnotte avec ' + (t?t.name:'?') + ' !';
+    broadcast(code);
+    setTimeout(()=>{
+      const gg = games[code]; if(!gg) return;
+      gg.status = (p?p.name:'?') + ' a la main. Choisis la vitesse de la roue.';
+      broadcast(code);
+    }, 1800);
   });
 
   socket.on('player:giveWord', ({guess})=>{
@@ -699,7 +994,7 @@ io.on('connection', (socket)=>{
     if(normalize(guess) === normalize(g.finaleWord)){
       g.finaleRevealed = g.finaleWord.split('').map((_,k)=>k);
       g.status = (p?p.name:'?') + ' a trouvé ! Il/elle remporte ' + g.finaleAmount + ' € !';
-      g.finaleAnswering=false; g.finaleRunning=false;
+      g.finaleAnswering=false; g.finaleRunning=false; g.finaleWon=true;
       clearTimers(g);
       broadcast(code);
       setTimeout(()=> endGame(code), 2500);
@@ -713,4 +1008,4 @@ io.on('connection', (socket)=>{
   socket.on('disconnect', ()=>{ /* les joueurs restent dans la partie pour permettre la reconnexion */ });
 });
 
-server.listen(PORT, ()=> console.log('Serveur La Roue de la Fortune sur le port ' + PORT));
+server.listen(PORT, ()=> console.log('Serveur La Roue des Mots sur le port ' + PORT));
