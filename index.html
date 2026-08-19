@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>La Roue de la Fortune</title>
+<title>La Roue des Mots</title>
 <style>
   :root{
     --bg:#120E09; --screen:#1C1712; --panel:#22190F; --tile-off:#382C1C;
@@ -50,12 +50,19 @@
 </head>
 <body>
 <div class="app">
-  <h1>LA ROUE DE LA FORTUNE</h1>
+  <h1>LA ROUE DES MOTS</h1>
 
-  <div id="screen-home" class="screen active">
+  <div id="screen-mode" class="screen active">
+    <div class="role-card"><p>Phrases classiques, comme d'habitude</p><button id="btnModeNormal" class="btn-gold" style="margin-bottom:0">Version normale</button></div>
+    <div class="role-card"><p>Chansons/films récents, refs internet</p><button id="btnModeRecent" class="btn-gold" style="margin-bottom:0">Version récente</button></div>
+    <div class="role-card"><p>Un peu des deux mélangées</p><button id="btnModeMixed" class="btn-gold" style="margin-bottom:0">Les deux</button></div>
+  </div>
+
+  <div id="screen-home" class="screen">
     <div class="role-card"><p>Tu crées la partie et tu obtiens les codes</p><button id="btnHost" class="btn-gold" style="margin-bottom:0">Chef de partie</button></div>
     <div class="role-card"><p>Tu rejoins avec le code donné par le chef de partie</p><button id="btnPlayer" class="btn-gold" style="margin-bottom:0">Joueur</button></div>
     <div class="role-card"><p>À afficher sur la télé, connexion automatique</p><button id="btnTv" class="btn-gold" style="margin-bottom:0">Écran d'affichage</button></div>
+    <a class="backlink" data-back="screen-mode">← changer de version</a>
   </div>
 
   <div id="screen-player-code" class="screen">
@@ -90,6 +97,7 @@
     <div id="hostLobbyBox" class="panel">
       <div class="label">Joueurs connectés</div>
       <div id="hostPlayerList"></div>
+      <button id="hostAddBot" class="btn-outline" style="margin-top:6px">+ Ajouter un bot</button>
       <button id="hostLaunch" class="btn-gold" disabled style="margin-top:10px;margin-bottom:0">En attente des joueurs...</button>
     </div>
     <div id="hostIntroBox" class="panel" style="display:none;text-align:center">
@@ -293,9 +301,15 @@ document.querySelectorAll('[data-back]').forEach(a=> a.onclick = ()=> goTo(a.dat
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const VOWELS = ['A','E','I','O','U','Y'];
 
+/* ================= VERSION ================= */
+let chosenMode = 'mixed';
+document.getElementById('btnModeNormal').onclick = ()=>{ chosenMode='normal'; goTo('screen-home'); };
+document.getElementById('btnModeRecent').onclick = ()=>{ chosenMode='recent'; goTo('screen-home'); };
+document.getElementById('btnModeMixed').onclick = ()=>{ chosenMode='mixed'; goTo('screen-home'); };
+
 /* ================= ACCUEIL ================= */
 document.getElementById('btnHost').onclick = ()=>{
-  socket.emit('host:create', (res)=>{
+  socket.emit('host:create', {mode:chosenMode}, (res)=>{
     if(!res || !res.ok) return;
     myRole='host'; myCode=res.code;
     localStorage.setItem('rdlf_session', JSON.stringify({role:'host', code:myCode}));
@@ -416,7 +430,8 @@ function renderHost(s){
     introStartedHost=false; readyStartedHost=false;
     document.getElementById('hostStepLabel').textContent = "Salon d'attente";
     const el = document.getElementById('hostPlayerList');
-    el.innerHTML = s.players.map(p=>`<div class="player-row"><span>${p.name}</span><span style="color:${p.ready?'#7FD79A':'var(--muted)'}">${p.ready?'✓ prêt':'en attente'}</span></div>`).join('') || '<div style="color:var(--gold-dim);font-size:13px">Personne pour le moment</div>';
+    el.innerHTML = s.players.map(p=>`<div class="player-row"><span>${p.isBot?'🤖 ':''}${p.name}</span><span style="display:flex;align-items:center;gap:8px"><span style="color:${p.ready?'#7FD79A':'var(--muted)'}">${p.ready?'✓ prêt':'en attente'}</span>${p.isBot?`<button data-id="${p.id}" class="removeBot" style="background:none;border:none;color:var(--gold-dim);font-size:14px;padding:0 4px">✕</button>`:''}</span></div>`).join('') || '<div style="color:var(--gold-dim);font-size:13px">Personne pour le moment</div>';
+    el.querySelectorAll('.removeBot').forEach(b=> b.onclick = ()=> socket.emit('host:removeBot', {playerId:b.dataset.id}));
     const allReady = s.players.length>0 && s.players.every(p=>p.ready);
     const btn = document.getElementById('hostLaunch');
     btn.disabled = !allReady;
@@ -495,10 +510,12 @@ function renderHost(s){
     showOnly('hostEndBox');
     document.getElementById('hostStepLabel').textContent = 'Partie terminée';
     document.getElementById('hostEndMsg').textContent = s.status;
+    maybeCelebrate('host_'+s.code, s.finaleWon);
     return;
   }
 }
 document.getElementById('hostLaunch').onclick = ()=> socket.emit('host:launch');
+document.getElementById('hostAddBot').onclick = ()=> socket.emit('host:addBot');
 document.getElementById('hostSkipIntro').onclick = ()=> socket.emit('host:skipIntro');
 function handleIntro(s){
   const vid = document.getElementById('tvIntroVideo');
@@ -518,6 +535,69 @@ function stopIntroVideo(){
 
 /* ===== Chrono rond + bruit ===== */
 let audioCtx = null;
+let lastSpokenStatus = null;
+function announce(text){
+  if(!text || !window.speechSynthesis) return;
+  if(text === lastSpokenStatus) return;
+  lastSpokenStatus = text;
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR';
+    u.rate = 1.05;
+    u.pitch = 1.05;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+let confettiFired = {};
+function playVictoryChime(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i)=>{
+      const o = audioCtx.createOscillator(); const gn = audioCtx.createGain();
+      o.connect(gn); gn.connect(audioCtx.destination);
+      o.frequency.value = freq;
+      const start = audioCtx.currentTime + i*0.14;
+      gn.gain.setValueAtTime(0.001, start);
+      gn.gain.linearRampToValueAtTime(0.25, start+0.02);
+      gn.gain.exponentialRampToValueAtTime(0.001, start+0.5);
+      o.start(start); o.stop(start+0.55);
+    });
+  }catch(e){}
+}
+function fireConfetti(containerId){
+  const host = document.getElementById(containerId);
+  if(!host) return;
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:1500';
+  const colors = ['#F0C77E','#7FD79A','#D4537E','#7F77DD','#378ADD','#fff'];
+  for(let i=0;i<90;i++){
+    const p = document.createElement('div');
+    const size = 6+Math.random()*7;
+    p.style.cssText = `position:absolute;top:-20px;left:${Math.random()*100}%;width:${size}px;height:${size*0.4}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};opacity:${0.8+Math.random()*0.2};
+      transform:rotate(${Math.random()*360}deg);border-radius:2px;`;
+    const dur = 2.2+Math.random()*1.8, delay = Math.random()*0.6;
+    p.style.animation = `rdlfFall ${dur}s ease-in ${delay}s forwards`;
+    wrap.appendChild(p);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(()=> wrap.remove(), 4500);
+}
+if(!document.getElementById('rdlfConfettiStyle')){
+  const st = document.createElement('style');
+  st.id = 'rdlfConfettiStyle';
+  st.textContent = `@keyframes rdlfFall{ to { transform: translateY(105vh) rotate(720deg); opacity:0.9; } }`;
+  document.head.appendChild(st);
+}
+function maybeCelebrate(key, won){
+  if(!won) return;
+  if(confettiFired[key]) return;
+  confettiFired[key] = true;
+  fireConfetti('screen-tv');
+  playVictoryChime();
+}
 function tickSound(){
   try{
     if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
@@ -625,6 +705,13 @@ function renderPlayer(s){
       card.innerHTML = potLine + `<div>La phrase apparaît sur l'écran...</div>`;
       return;
     }
+    if(s.pendingSwap){
+      const others = s.players.filter(p=>p.id!==myPlayerId);
+      card.innerHTML = potLine + `<div style="margin-bottom:8px">Avec qui échanger ta cagnotte ?</div>` +
+        others.map(p=>`<button data-id="${p.id}" class="btn-gold swapbtn" style="margin-bottom:8px">${p.name} (${s.pots[p.id]||0}€)</button>`).join('');
+      card.querySelectorAll('.swapbtn').forEach(b=> b.onclick = ()=> socket.emit('player:swap', {targetPlayerId:b.dataset.id}));
+      return;
+    }
     if(!s.pendingLetterMode){
       card.innerHTML = potLine + `
         <div class="spin-btns">
@@ -709,6 +796,7 @@ function renderPlayer(s){
 function renderTv(s){
   if(!s) return;
   document.getElementById('tvStatus').textContent = s.status;
+  announce(s.status);
   document.getElementById('tvFinaleTiles').style.display='none';
   document.getElementById('tvFinaleTimer').style.display='none';
   document.getElementById('tvJoinBox').style.display = (s.phase==='lobby') ? 'block' : 'none';
@@ -794,6 +882,7 @@ function renderTv(s){
     document.getElementById('tvHandLabel').textContent = 'Partie terminée';
     document.getElementById('tvPotsRow').innerHTML=''; document.getElementById('tvTiles').innerHTML='';
     document.getElementById('tvWheelPanel').style.display='none';
+    maybeCelebrate('tv_'+s.code, s.finaleWon);
   }
 }
 </script>
